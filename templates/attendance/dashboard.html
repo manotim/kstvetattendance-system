@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+
+{% block title %}Attendance Dashboard - TVET Attendance System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-clipboard-check"></i> Attendance Management</h2>
+    <div>
+        <a href="{% url 'attendance:create_session' %}" class="btn btn-primary">
+            <i class="fas fa-plus-circle"></i> Create Session
+        </a>
+        <a href="{% url 'attendance:report' %}" class="btn btn-info">
+            <i class="fas fa-chart-bar"></i> View Reports
+        </a>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Active Sessions</h6>
+                        <h2 class="mb-0">{{ active_sessions_count }}</h2>
+                    </div>
+                    <i class="fas fa-play-circle fa-3x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Present Today</h6>
+                        <h2 class="mb-0">{{ today_stats.total_present|default:0 }}</h2>
+                    </div>
+                    <i class="fas fa-check-circle fa-3x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Absent Today</h6>
+                        <h2 class="mb-0">{{ today_stats.total_absent|default:0 }}</h2>
+                    </div>
+                    <i class="fas fa-times-circle fa-3x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Sessions Today</h6>
+                        <h2 class="mb-0">{{ total_sessions_today }}</h2>
+                    </div>
+                    <i class="fas fa-calendar-day fa-3x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Active Sessions -->
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-play"></i> Active Sessions</h5>
+            </div>
+            <div class="card-body">
+                {% if active_sessions %}
+                <div class="list-group">
+                    {% for session in active_sessions %}
+                    <a href="{% url 'attendance:mark_attendance' session.id %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ session.class_session.class_code }}</h6>
+                            <small>{{ session.start_time|time:"H:i" }} - {{ session.end_time|time:"H:i" }}</small>
+                        </div>
+                        <p class="mb-1">{{ session.topic_covered }}</p>
+                        <small class="text-muted">
+                            <i class="fas fa-map-marker-alt"></i> {{ session.venue }} |
+                            <i class="fas fa-users"></i> {{ session.total_present }} present
+                        </small>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">No active sessions at the moment.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Today's Sessions -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-calendar-day"></i> Today's Sessions</h5>
+            </div>
+            <div class="card-body">
+                {% if today_sessions %}
+                <div class="list-group">
+                    {% for session in today_sessions %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ session.class_session.class_code }}</h6>
+                            <span class="badge bg-{% if session.status == 'ongoing' %}success{% else %}secondary{% endif %}">
+                                {{ session.get_status_display }}
+                            </span>
+                        </div>
+                        <p class="mb-1">
+                            <i class="fas fa-clock"></i> {{ session.start_time|time:"H:i" }} - {{ session.end_time|time:"H:i" }}
+                        </p>
+                        <p class="mb-1">{{ session.topic_covered }}</p>
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">
+                                <i class="fas fa-chalkboard-teacher"></i> {{ session.instructor.get_full_name }}
+                            </small>
+                            <a href="{% url 'attendance:mark_attendance' session.id %}" class="btn btn-sm btn-outline-primary">
+                                Mark Attendance
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">No sessions scheduled for today.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upcoming Sessions -->
+{% if upcoming_sessions %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-calendar-alt"></i> Upcoming Sessions</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Class</th>
+                                <th>Time</th>
+                                <th>Topic</th>
+                                <th>Venue</th>
+                                <th>Instructor</th>
+                                <th>Method</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for session in upcoming_sessions %}
+                            <tr>
+                                <td>{{ session.session_date|date:"d/m/Y" }}</td>
+                                <td>{{ session.class_session.class_code }}</td>
+                                <td>{{ session.start_time|time:"H:i" }} - {{ session.end_time|time:"H:i" }}</td>
+                                <td>{{ session.topic_covered|truncatechars:30 }}</td>
+                                <td>{{ session.venue }}</td>
+                                <td>{{ session.instructor.get_full_name }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        {{ session.get_attendance_method_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Quick Actions -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3 mb-3">
+                        <a href="{% url 'attendance:create_session' %}" class="btn btn-outline-primary btn-lg w-100">
+                            <i class="fas fa-plus fa-2x mb-2"></i><br>
+                            Create Session
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{% url 'attendance:report' %}" class="btn btn-outline-success btn-lg w-100">
+                            <i class="fas fa-chart-bar fa-2x mb-2"></i><br>
+                            View Reports
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{% url 'students:list' %}" class="btn btn-outline-info btn-lg w-100">
+                            <i class="fas fa-users fa-2x mb-2"></i><br>
+                            Manage Students
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{% url 'courses:list' %}" class="btn btn-outline-warning btn-lg w-100">
+                            <i class="fas fa-book fa-2x mb-2"></i><br>
+                            Manage Classes
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

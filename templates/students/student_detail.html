@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ student.admission_number }} - Student Details{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="fas fa-user-graduate"></i> Student Details
+    </h2>
+    <div class="btn-group">
+        <a href="{% url 'students:update' student.pk %}" class="btn btn-warning">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a href="{% url 'students:enroll' student.pk %}" class="btn btn-primary">
+            <i class="fas fa-book"></i> Enroll in Class
+        </a>
+        <a href="{% url 'students:list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Student Information Card -->
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-id-card"></i> Student Information</h5>
+            </div>
+            <div class="card-body text-center">
+                {% if student.profile_picture %}
+                    <img src="{{ student.profile_picture.url }}" alt="Profile" class="rounded-circle mb-3" width="150" height="150">
+                {% else %}
+                    <div class="rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center mb-3" style="width: 150px; height: 150px;">
+                        <i class="fas fa-user-graduate fa-4x text-light"></i>
+                    </div>
+                {% endif %}
+                
+                <h4>{{ student.user.get_full_name|default:student.user.username }}</h4>
+                <p class="text-muted">{{ student.admission_number }}</p>
+                
+                <div class="mb-3">
+                    <span class="badge bg-{% if student.status == 'active' %}success{% elif student.status == 'inactive' %}warning{% else %}danger{% endif %}">
+                        {{ student.get_status_display }}
+                    </span>
+                    <span class="badge bg-info">{{ student.get_gender_display }}</span>
+                    {% if student.is_boarding %}
+                        <span class="badge bg-secondary">Boarding</span>
+                    {% endif %}
+                    {% if student.has_special_needs %}
+                        <span class="badge bg-warning">Special Needs</span>
+                    {% endif %}
+                </div>
+                
+                <div class="text-start">
+                    <p><strong>Course:</strong> 
+                        {% if student.course %}
+                            {{ student.course.name }} ({{ student.course.code }})
+                        {% else %}
+                            <span class="text-danger">Not assigned</span>
+                        {% endif %}
+                    </p>
+                    <p><strong>Class:</strong> 
+                        {% if student.current_class %}
+                            {{ student.current_class.name }} ({{ student.current_class.class_code }})
+                        {% else %}
+                            <span class="text-muted">Not assigned</span>
+                        {% endif %}
+                    </p>
+                    <p><strong>Year of Admission:</strong> {{ student.year_of_admission }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Contact Information Card -->
+        <div class="card mt-3">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-address-book"></i> Contact Information</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Email:</strong> {{ student.user.email }}</p>
+                <p><strong>Phone:</strong> {{ student.user.phone_number|default:"Not provided" }}</p>
+                <p><strong>Address:</strong> {{ student.address }}</p>
+                <p><strong>County:</strong> {{ student.county }}</p>
+                <p><strong>Sub-County:</strong> {{ student.sub_county }}</p>
+                {% if student.ward %}
+                    <p><strong>Ward:</strong> {{ student.ward }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Content Column -->
+    <div class="col-md-8">
+        <!-- Emergency Contact Card -->
+        <div class="card mb-4">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Emergency Contact</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Name:</strong> {{ student.emergency_contact_name }}</p>
+                        <p><strong>Relationship:</strong> {{ student.emergency_contact_relationship }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Phone:</strong> {{ student.emergency_contact_phone }}</p>
+                        {% if student.phone_number_alternative %}
+                            <p><strong>Alternative Phone:</strong> {{ student.phone_number_alternative }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Parent/Guardian Information -->
+        {% if student.parent_name %}
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-users"></i> Parent/Guardian Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Name:</strong> {{ student.parent_name }}</p>
+                        <p><strong>Occupation:</strong> {{ student.parent_occupation|default:"Not specified" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Phone:</strong> {{ student.parent_phone }}</p>
+                        <p><strong>Email:</strong> {{ student.parent_email|default:"Not provided" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Enrollment History -->
+        <div class="card mb-4">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Enrollment History</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Class</th>
+                                <th>Course</th>
+                                <th>Enrollment Date</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for enrollment in enrollments %}
+                            <tr>
+                                <td>{{ enrollment.class_enrolled.class_code }}</td>
+                                <td>{{ enrollment.course.code }}</td>
+                                <td>{{ enrollment.enrollment_date|date:"d/m/Y" }}</td>
+                                <td>{{ enrollment.get_enrollment_type_display }}</td>
+                                <td>
+                                    {% if enrollment.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">
+                                    No enrollment records found.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Academic Records -->
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-line"></i> Academic Records</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Module Code</th>
+                                <th>Module Name</th>
+                                <th>Grade</th>
+                                <th>Score</th>
+                                <th>Semester</th>
+                                <th>Year</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in academic_records %}
+                            <tr>
+                                <td>{{ record.module_code }}</td>
+                                <td>{{ record.module_name }}</td>
+                                <td>
+                                    <span class="badge bg-{% if record.grade == 'A' %}success{% elif record.grade == 'B' %}info{% elif record.grade == 'C' %}warning{% else %}danger{% endif %}">
+                                        {{ record.grade }}
+                                    </span>
+                                </td>
+                                <td>{{ record.score }}</td>
+                                <td>Semester {{ record.semester }}</td>
+                                <td>{{ record.academic_year }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">
+                                    No academic records found.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

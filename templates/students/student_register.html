@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Register Student - TVET Attendance System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-user-plus"></i> Register New Student</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <!-- Personal Information -->
+                    <fieldset class="border p-3 mb-4">
+                        <legend class="w-auto px-2"><i class="fas fa-user"></i> Personal Information</legend>
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.username|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.email|as_crispy_field }}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.first_name|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.last_name|as_crispy_field }}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                {{ form.date_of_birth|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.gender|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.national_id|as_crispy_field }}
+                            </div>
+                        </div>
+                    </fieldset>
+                    
+                    <!-- Contact Information -->
+                    <fieldset class="border p-3 mb-4">
+                        <legend class="w-auto px-2"><i class="fas fa-map-marker-alt"></i> Contact Information</legend>
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.address|as_crispy_field }}
+                            </div>
+                            <div class="col-md-3">
+                                {{ form.county|as_crispy_field }}
+                            </div>
+                            <div class="col-md-3">
+                                {{ form.sub_county|as_crispy_field }}
+                            </div>
+                        </div>
+                    </fieldset>
+                    
+                    <!-- Emergency Contact -->
+                    <fieldset class="border p-3 mb-4">
+                        <legend class="w-auto px-2"><i class="fas fa-exclamation-triangle"></i> Emergency Contact</legend>
+                        <div class="row">
+                            <div class="col-md-4">
+                                {{ form.emergency_contact_name|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.emergency_contact_phone|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.emergency_contact_relationship|as_crispy_field }}
+                            </div>
+                        </div>
+                    </fieldset>
+                    
+                    <!-- Academic Information -->
+                    <fieldset class="border p-3 mb-4">
+                        <legend class="w-auto px-2"><i class="fas fa-graduation-cap"></i> Academic Information</legend>
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.course|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.year_of_admission|as_crispy_field }}
+                            </div>
+                        </div>
+                    </fieldset>
+                    
+                    <!-- Account Credentials -->
+                    <fieldset class="border p-3 mb-4">
+                        <legend class="w-auto px-2"><i class="fas fa-key"></i> Account Credentials</legend>
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.password1|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.password2|as_crispy_field }}
+                            </div>
+                        </div>
+                    </fieldset>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Register Student
+                        </button>
+                        <a href="{% url 'students:list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

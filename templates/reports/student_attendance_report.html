@@ -1,0 +1,334 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Student Attendance Report - TVET Attendance System{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.css">
+<style>
+    .student-profile {
+        border-right: 3px solid #007bff;
+        padding-right: 15px;
+    }
+    .attendance-trend {
+        height: 100px;
+        background: linear-gradient(to right, 
+            {% for day in "12345" %}
+            {% if forloop.counter0 == 0 %}#28a745{% else %}#f8f9fa{% endif %}
+            {% if not forloop.last %},{% endif %}
+            {% endfor %}
+        );
+        border-radius: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-user-graduate"></i> Student Attendance Report</h2>
+    <div class="btn-group">
+        <a href="{% url 'reports:export_report' 'student' %}" class="btn btn-primary">
+            <i class="fas fa-download"></i> Export
+        </a>
+        <a href="{% url 'reports:dashboard' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+    </div>
+</div>
+
+<!-- Filter Form -->
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="fas fa-filter"></i> Filter Options</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            {{ form|crispy }}
+            <div class="col-12">
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Generate Report
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if grouped_data %}
+<!-- Report Summary -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Report Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <p><strong>Period:</strong><br>
+                           {{ start_date|date:"d/m/Y" }} to {{ end_date|date:"d/m/Y" }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <p><strong>Total Sessions:</strong><br>{{ total_sessions }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <p><strong>Overall Rate:</strong><br>
+                           <span class="badge bg-{% if summary.attendance_rate >= 80 %}success{% elif summary.attendance_rate >= 60 %}warning{% else %}danger{% endif %}">
+                               {{ summary.attendance_rate }}%
+                           </span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-success">
+            <div class="card-body text-center">
+                <h6 class="card-title">Attendance Statistics</h6>
+                <div class="row">
+                    <div class="col-4">
+                        <h3>{{ summary.present_count }}</h3>
+                        <small>Present</small>
+                    </div>
+                    <div class="col-4">
+                        <h3>{{ summary.absent_count }}</h3>
+                        <small>Absent</small>
+                    </div>
+                    <div class="col-4">
+                        <h3>{{ summary.late_count }}</h3>
+                        <small>Late</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart Section -->
+{% if chart_data %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-line"></i> Attendance Trends</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="studentChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Student List -->
+<div class="card">
+    <div class="card-header bg-dark text-white">
+        <h5 class="mb-0">
+            <i class="fas fa-users"></i> 
+            Student Attendance Details 
+            <span class="badge bg-light text-dark">{{ grouped_data|length }} students</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        {% for student_data in grouped_data %}
+        <div class="card mb-3">
+            <div class="card-header bg-light">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h6 class="mb-0">
+                            <i class="fas fa-user-graduate"></i>
+                            {{ student_data.student.user.get_full_name }}
+                            <small class="text-muted">({{ student_data.student.admission_number }})</small>
+                        </h6>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <span class="badge bg-{% if student_data.attendance_rate >= 80 %}success{% elif student_data.attendance_rate >= 60 %}warning{% else %}danger{% endif %}">
+                            Attendance: {{ student_data.attendance_rate }}%
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 student-profile">
+                        <p><strong>Course:</strong><br>
+                           {{ student_data.student.course.code|default:"Not assigned" }}</p>
+                        <p><strong>Class:</strong><br>
+                           {{ student_data.student.current_class.class_code|default:"Not assigned" }}</p>
+                        <p><strong>Status:</strong><br>
+                           <span class="badge bg-{% if student_data.student.status == 'active' %}success{% else %}warning{% endif %}">
+                               {{ student_data.student.get_status_display }}
+                           </span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Attendance Breakdown</h6>
+                        <div class="row text-center mb-3">
+                            <div class="col-4">
+                                <div class="card bg-success text-white">
+                                    <div class="card-body p-2">
+                                        <h5 class="mb-0">{{ student_data.present_count }}</h5>
+                                        <small>Present</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="card bg-danger text-white">
+                                    <div class="card-body p-2">
+                                        <h5 class="mb-0">{{ student_data.absent_count }}</h5>
+                                        <small>Absent</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="card bg-warning text-white">
+                                    <div class="card-body p-2">
+                                        <h5 class="mb-0">{{ student_data.late_count }}</h5>
+                                        <small>Late</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if student_data.records %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Class</th>
+                                        <th>Status</th>
+                                        <th>Time</th>
+                                        <th>Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for record in student_data.records|slice:":5" %}
+                                    <tr>
+                                        <td>{{ record.session.session_date|date:"d/m/Y" }}</td>
+                                        <td>{{ record.session.class_session.class_code }}</td>
+                                        <td>
+                                            <span class="badge bg-{% if record.status == 'present' %}success{% elif record.status == 'absent' %}danger{% else %}warning{% endif %}">
+                                                {{ record.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if record.check_in_time %}
+                                            {{ record.check_in_time|time:"H:i" }}
+                                            {% else %}
+                                            -
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ record.remarks|truncatechars:20 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            {% if student_data.records|length > 5 %}
+                            <p class="text-muted text-center">
+                                ... and {{ student_data.records|length|add:"-5" }} more records
+                            </p>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-3">
+                        <h6>Quick Actions</h6>
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'students:detail' student_data.student.pk %}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i> View Profile
+                            </a>
+                            <a href="{% url 'attendance:student_history_by_id' student_data.student.pk %}" 
+                               class="btn btn-sm btn-outline-info">
+                                <i class="fas fa-history"></i> Full History
+                            </a>
+                            <button class="btn btn-sm btn-outline-success" 
+                                    onclick="generateStudentReport({{ student_data.student.pk }})">
+                                <i class="fas fa-file-pdf"></i> Export PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<!-- No Data Message -->
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-user-slash fa-4x text-muted mb-3"></i>
+        <h4>No Student Data Found</h4>
+        <p class="text-muted">Select a student or adjust your filters to generate a report.</p>
+    </div>
+</div>
+{% endif %}
+
+{% if grouped_data and grouped_data|length > 10 %}
+<!-- Pagination -->
+<div class="row mt-4">
+    <div class="col-12">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                <li class="page-item disabled">
+                    <a class="page-link" href="#" tabindex="-1">Previous</a>
+                </li>
+                <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                <li class="page-item"><a class="page-link" href="#">2</a></li>
+                <li class="page-item"><a class="page-link" href="#">3</a></li>
+                <li class="page-item">
+                    <a class="page-link" href="#">Next</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+{% if chart_data %}
+$(document).ready(function() {
+    const chartData = JSON.parse('{{ chart_data|safe }}');
+    const ctx = document.getElementById('studentChart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: chartData.type || 'line',
+        data: {
+            labels: chartData.labels,
+            datasets: chartData.datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'Student Attendance Trend'
+                }
+            }
+        }
+    });
+});
+{% endif %}
+
+function generateStudentReport(studentId) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('student', studentId);
+    
+    const url = `{% url 'reports:export_report' 'student' %}?${params.toString()}&format=pdf`;
+    window.open(url, '_blank');
+}
+</script>
+{% endblock %}

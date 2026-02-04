@@ -1,0 +1,239 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ class.class_code }} - Class Details{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="fas fa-chalkboard"></i> Class Details
+    </h2>
+    <div class="btn-group">
+        <a href="{% url 'courses:class_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+        {% if perms.courses.change_class %}
+        <a href="{% url 'courses:class_update' class.pk %}" class="btn btn-warning">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        {% endif %}
+        {% if perms.students.add_enrollment %}
+        <a href="{% url 'courses:enroll_students' class.pk %}" class="btn btn-primary">
+            <i class="fas fa-user-plus"></i> Enroll Students
+        </a>
+        {% endif %}
+        {% if perms.attendance.add_attendancesession %}
+        <a href="{% url 'attendance:create_session' %}" class="btn btn-success">
+            <i class="fas fa-clipboard-check"></i> Take Attendance
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <!-- Class Information Card -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Class Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p><strong>Class Code:</strong> {{ class.class_code }}</p>
+                        <p><strong>Class Name:</strong> {{ class.name }}</p>
+                        <p><strong>Course:</strong> 
+                            <a href="{% url 'courses:detail' class.course.pk %}">
+                                {{ class.course.code }} - {{ class.course.name }}
+                            </a>
+                        </p>
+                        <p><strong>Instructor:</strong> 
+                            {% if class.instructor %}
+                            {{ class.instructor.get_full_name }}
+                            {% else %}
+                            <span class="text-danger">Not assigned</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Academic Year:</strong> {{ class.academic_year }}</p>
+                        <p><strong>Semester:</strong> {{ class.semester }}</p>
+                        <p><strong>Status:</strong> 
+                            {% if class.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Max Students:</strong> {{ class.max_students }}</p>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p><strong>Start Date:</strong> {{ class.start_date|date:"d/m/Y" }}</p>
+                        <p><strong>End Date:</strong> {{ class.end_date|date:"d/m/Y" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Meeting Days:</strong> {{ class.meeting_days }}</p>
+                        <p><strong>Meeting Time:</strong> {{ class.meeting_time }}</p>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <p><strong>Venue:</strong> {{ class.venue }}</p>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Created:</strong> {{ class.created_at|date:"d/m/Y" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Last Updated:</strong> {{ class.updated_at|date:"d/m/Y" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Enrolled Students Card -->
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-users"></i> Enrolled Students ({{ enrollments.count }})
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if enrollments %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Admission No.</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Enrollment Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for enrollment in enrollments %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'students:detail' enrollment.student.pk %}">
+                                        {{ enrollment.student.admission_number }}
+                                    </a>
+                                </td>
+                                <td>{{ enrollment.student.user.get_full_name }}</td>
+                                <td>{{ enrollment.student.user.email }}</td>
+                                <td>{{ enrollment.student.user.phone_number|default:"-" }}</td>
+                                <td>{{ enrollment.enrollment_date|date:"d/m/Y" }}</td>
+                                <td>
+                                    {% if enrollment.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Inactive</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center text-muted py-3">
+                    <i class="fas fa-user-slash fa-2x mb-2"></i><br>
+                    No students enrolled in this class.
+                    {% if perms.students.add_enrollment %}
+                    <a href="{% url 'courses:enroll_students' class.pk %}">Enroll students</a>
+                    {% endif %}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Statistics and Quick Actions -->
+    <div class="col-md-4">
+        <!-- Statistics Card -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Statistics</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <h1 class="display-4">{{ enrollments.count }}</h1>
+                    <p class="text-muted">Enrolled Students</p>
+                </div>
+                <div class="mb-3">
+                    <h1 class="display-4">{{ total_sessions }}</h1>
+                    <p class="text-muted">Total Sessions</p>
+                </div>
+                <div class="mb-3">
+                    <h1 class="display-4">{{ class.max_students }}</h1>
+                    <p class="text-muted">Max Capacity</p>
+                </div>
+                <div>
+                    {% with available=class.max_students|add:-enrollments.count %}
+                    <h1 class="display-4">{{ available }}</h1>
+                    <p class="text-muted">Available Slots</p>
+                    {% endwith %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions Card -->
+        <div class="card mb-4">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if perms.students.add_enrollment %}
+                    <a href="{% url 'courses:enroll_students' class.pk %}" class="btn btn-primary">
+                        <i class="fas fa-user-plus"></i> Enroll Students
+                    </a>
+                    {% endif %}
+                    
+                    {% if perms.attendance.add_attendancesession %}
+                    <a href="{% url 'attendance:create_session' %}" class="btn btn-success">
+                        <i class="fas fa-clipboard-check"></i> Take Attendance
+                    </a>
+                    {% endif %}
+                    
+                    <a href="{% url 'attendance:report' %}?class_session={{ class.id }}" class="btn btn-outline-info">
+                        <i class="fas fa-chart-bar"></i> Attendance Reports
+                    </a>
+                    
+                    <a href="{% url 'students:list' %}?class={{ class.id }}" class="btn btn-outline-success">
+                        <i class="fas fa-users"></i> View Students
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Upcoming Sessions -->
+        {% if upcoming_sessions %}
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-calendar-alt"></i> Upcoming Sessions</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% for session in upcoming_sessions %}
+                    <a href="{% url 'attendance:mark_attendance' session.id %}" 
+                       class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <small>{{ session.session_date|date:"d/m" }}</small>
+                            <span class="badge bg-primary">{{ session.start_time|time:"H:i" }}</span>
+                        </div>
+                        <p class="mb-1">{{ session.topic_covered|truncatechars:30 }}</p>
+                        <small class="text-muted">{{ session.venue }}</small>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

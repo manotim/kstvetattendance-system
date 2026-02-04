@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - TVET Attendance System{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2>Welcome to TVET Attendance System</h2>
+        <p class="lead">Computerized Attendance and Class Management System for TVET Institutions in Kitui County</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title">Students</h5>
+                        <h2 class="mb-0">0</h2>
+                    </div>
+                    <i class="fas fa-users fa-3x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title">Courses</h5>
+                        <h2 class="mb-0">0</h2>
+                    </div>
+                    <i class="fas fa-book fa-3x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title">Attendance Today</h5>
+                        <h2 class="mb-0">0</h2>
+                    </div>
+                    <i class="fas fa-check-circle fa-3x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title">Instructors</h5>
+                        <h2 class="mb-0">0</h2>
+                    </div>
+                    <i class="fas fa-chalkboard-teacher fa-3x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> System Information</h5>
+            </div>
+            <div class="card-body">
+                <h6>Project Title:</h6>
+                <p>Design and Implementation of a Computerized Attendance and Class Management System in TVET Institutions in Kitui County.</p>
+                
+                <h6>Specific Objectives:</h6>
+                <ol>
+                    <li>To design and develop a secure computerized system for managing classes and user access.</li>
+                    <li>To design and implement a computerized learner registration and attendance marking module.</li>
+                    <li>To generate automated attendance reports and visual analytics.</li>
+                    <li>To test, deploy, and document the system.</li>
+                </ol>
+                
+                <h6>Developer:</h6>
+                <p><strong>Franciscah Mwende Mutia</strong><br>
+                ADM Number: 2025CS162301<br>
+                Course: CS 7403</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

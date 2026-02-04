@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ course.code }} - Course Details{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="fas fa-book-open"></i> Course Details
+    </h2>
+    <div class="btn-group">
+        <a href="{% url 'courses:list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+        {% if perms.courses.change_course %}
+        <a href="{% url 'courses:update' course.pk %}" class="btn btn-warning">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        {% endif %}
+        {% if perms.courses.add_class %}
+        <a href="{% url 'courses:class_create' %}?course={{ course.id }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Class
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <!-- Course Information Card -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Course Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p><strong>Course Code:</strong> {{ course.code }}</p>
+                        <p><strong>Course Name:</strong> {{ course.name }}</p>
+                        <p><strong>Level:</strong> 
+                            <span class="badge bg-info">{{ course.get_level_display }}</span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Department:</strong> {{ course.department }}</p>
+                        <p><strong>Duration:</strong> {{ course.duration_months }} months</p>
+                        <p><strong>Status:</strong> 
+                            {% if course.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <h6>Description:</h6>
+                    <p>{{ course.description|linebreaks|default:"No description provided." }}</p>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Created:</strong> {{ course.created_at|date:"d/m/Y" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Last Updated:</strong> {{ course.updated_at|date:"d/m/Y" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Active Classes Card -->
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-chalkboard-teacher"></i> Active Classes</h5>
+            </div>
+            <div class="card-body">
+                {% if active_classes %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Class Code</th>
+                                <th>Name</th>
+                                <th>Instructor</th>
+                                <th>Academic Year</th>
+                                <th>Semester</th>
+                                <th>Students</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for class in active_classes %}
+                            <tr>
+                                <td>{{ class.class_code }}</td>
+                                <td>{{ class.name }}</td>
+                                <td>
+                                    {% if class.instructor %}
+                                    {{ class.instructor.get_full_name }}
+                                    {% else %}
+                                    <span class="text-muted">Not assigned</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ class.academic_year }}</td>
+                                <td>Semester {{ class.semester }}</td>
+                                <td>{{ class.enrollments.count }}</td>
+                                <td>
+                                    <a href="{% url 'courses:class_detail' class.pk %}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center text-muted py-3">
+                    <i class="fas fa-chalkboard fa-2x mb-2"></i><br>
+                    No active classes for this course.
+                    {% if perms.courses.add_class %}
+                    <a href="{% url 'courses:class_create' %}?course={{ course.id }}">Create a class</a>
+                    {% endif %}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Statistics and Quick Actions -->
+    <div class="col-md-4">
+        <!-- Statistics Card -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Statistics</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <h1 class="display-4">{{ active_classes.count }}</h1>
+                    <p class="text-muted">Active Classes</p>
+                </div>
+                <div class="mb-3">
+                    <h1 class="display-4">{{ total_students }}</h1>
+                    <p class="text-muted">Enrolled Students</p>
+                </div>
+                <div>
+                    <h1 class="display-4">{{ course.duration_months }}</h1>
+                    <p class="text-muted">Months Duration</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions Card -->
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if perms.courses.add_class %}
+                    <a href="{% url 'courses:class_create' %}?course={{ course.id }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Create New Class
+                    </a>
+                    {% endif %}
+                    
+                    <a href="{% url 'courses:class_list' %}?course={{ course.id }}" class="btn btn-outline-info">
+                        <i class="fas fa-list"></i> View All Classes
+                    </a>
+                    
+                    {% if perms.students.view_student %}
+                    <a href="{% url 'students:list' %}?course={{ course.id }}" class="btn btn-outline-success">
+                        <i class="fas fa-users"></i> View Students
+                    </a>
+                    {% endif %}
+                    
+                    {% if perms.attendance.view_attendancesession %}
+                    <a href="{% url 'attendance:report' %}?course={{ course.id }}" class="btn btn-outline-primary">
+                        <i class="fas fa-chart-bar"></i> Attendance Reports
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Course Details Card -->
+        <div class="card mt-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-cogs"></i> Course Details</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Course Code
+                        <span class="badge bg-primary">{{ course.code }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Level
+                        <span class="badge bg-info">{{ course.get_level_display }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Department
+                        <span>{{ course.department }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Status
+                        <span class="badge bg-{% if course.is_active %}success{% else %}danger{% endif %}">
+                            {% if course.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Created
+                        <span>{{ course.created_at|date:"d/m/Y" }}</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

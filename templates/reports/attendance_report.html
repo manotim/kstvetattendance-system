@@ -1,0 +1,412 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Attendance Report - TVET Attendance System{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.css">
+<style>
+    .report-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+    .stat-card {
+        transition: transform 0.3s;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 20px;
+    }
+    .export-buttons {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 100;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2><i class="fas fa-chart-bar"></i> Attendance Analysis Report</h2>
+            <p class="mb-0">
+                Period: {{ start_date|date:"d/m/Y" }} to {{ end_date|date:"d/m/Y" }} | 
+                Grouped by: {{ group_by|title }}
+            </p>
+        </div>
+        <div class="export-buttons">
+            <div class="btn-group">
+                <button type="button" class="btn btn-light btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-download"></i> Export
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" onclick="exportReport('pdf')">PDF Document</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="exportReport('excel')">Excel Spreadsheet</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="exportReport('csv')">CSV File</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="exportReport('print')">Print Report</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Filter Form -->
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="fas fa-filter"></i> Report Filters</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            {{ form|crispy }}
+            <div class="col-12">
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Generate Report
+                    </button>
+                    <a href="{% url 'reports:attendance_report' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Reset
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if grouped_data %}
+<!-- Summary Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-primary stat-card">
+            <div class="card-body text-center">
+                <h6 class="card-title">Total Records</h6>
+                <h2 class="mb-0">{{ summary.total }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-success stat-card">
+            <div class="card-body text-center">
+                <h6 class="card-title">Present</h6>
+                <h2 class="mb-0">{{ summary.present }}</h2>
+                <small>{{ summary.attendance_rate }}% Rate</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-warning stat-card">
+            <div class="card-body text-center">
+                <h6 class="card-title">Absent</h6>
+                <h2 class="mb-0">{{ summary.absent }}</h2>
+                <small>{{ summary.absent|floatformat:0 }}% of total</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-info stat-card">
+            <div class="card-body text-center">
+                <h6 class="card-title">Late Arrivals</h6>
+                <h2 class="mb-0">{{ summary.late }}</h2>
+                <small>{{ summary.punctuality_rate }}% Punctuality</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart Section -->
+{% if chart_data %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-line"></i> Visualization</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="attendanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Data Table -->
+<div class="card">
+    <div class="card-header bg-dark text-white">
+        <h5 class="mb-0"><i class="fas fa-table"></i> Attendance Data</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="attendanceTable">
+                <thead>
+                    <tr>
+                        {% if group_by == 'day' %}
+                        <th>Date</th>
+                        {% elif group_by == 'class' %}
+                        <th>Class</th>
+                        {% elif group_by == 'instructor' %}
+                        <th>Instructor</th>
+                        {% elif group_by == 'student' %}
+                        <th>Student</th>
+                        {% endif %}
+                        <th>Present</th>
+                        <th>Absent</th>
+                        <th>Late</th>
+                        <th>Excused</th>
+                        <th>Total</th>
+                        <th>Attendance Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in grouped_data %}
+                    <tr>
+                        {% if group_by == 'day' %}
+                        <td>{{ item.date|date:"d/m/Y" }}</td>
+                        {% elif group_by == 'class' %}
+                        <td>{{ item.class_name }}</td>
+                        {% elif group_by == 'instructor' %}
+                        <td>{{ item.instructor_name }}</td>
+                        {% elif group_by == 'student' %}
+                        <td>{{ item.student_name }}</td>
+                        {% endif %}
+                        <td>{{ item.present }}</td>
+                        <td>{{ item.absent }}</td>
+                        <td>{{ item.late }}</td>
+                        <td>{{ item.excused|default:0 }}</td>
+                        <td>{{ item.total }}</td>
+                        <td>
+                            {% with rate=item.present|floatformat:2 %}
+                            {% widthratio item.present item.total 100 as attendance_rate %}
+                            <span class="badge bg-{% if attendance_rate >= 80 %}success{% elif attendance_rate >= 60 %}warning{% else %}danger{% endif %}">
+                                {{ attendance_rate|floatformat:1 }}%
+                            </span>
+                            {% endwith %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-active">
+                        <th>Total</th>
+                        <th>{{ summary.present }}</th>
+                        <th>{{ summary.absent }}</th>
+                        <th>{{ summary.late }}</th>
+                        <th>{{ summary.excused }}</th>
+                        <th>{{ summary.total }}</th>
+                        <th>
+                            <span class="badge bg-primary">
+                                {{ summary.attendance_rate }}%
+                            </span>
+                        </th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Report Actions -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center">
+                <button class="btn btn-primary me-2" onclick="saveThisReport()">
+                    <i class="fas fa-save"></i> Save This Report
+                </button>
+                <button class="btn btn-success me-2" onclick="scheduleThisReport()">
+                    <i class="fas fa-calendar-alt"></i> Schedule Report
+                </button>
+                <button class="btn btn-info" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print Report
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<!-- No Data Message -->
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-chart-bar fa-4x text-muted mb-3"></i>
+        <h4>No Data Available</h4>
+        <p class="text-muted">Adjust your filters and generate a report to see data.</p>
+    </div>
+</div>
+{% endif %}
+
+<!-- Save Report Modal -->
+<div class="modal fade" id="saveReportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Save Report</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="saveReportForm">
+                    <div class="mb-3">
+                        <label for="reportName" class="form-label">Report Name</label>
+                        <input type="text" class="form-control" id="reportName" 
+                               value="Attendance Report - {{ start_date|date:'Y-m-d' }} to {{ end_date|date:'Y-m-d' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="reportDescription" class="form-label">Description (Optional)</label>
+                        <textarea class="form-control" id="reportDescription" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitSaveReport()">Save Report</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+// Initialize date range selector
+$(document).ready(function() {
+    const dateRangeSelect = $('#id_date_range');
+    const startDateInput = $('#id_start_date');
+    const endDateInput = $('#id_end_date');
+    
+    function toggleCustomDates() {
+        if (dateRangeSelect.val() === 'custom') {
+            startDateInput.parent().show();
+            endDateInput.parent().show();
+        } else {
+            startDateInput.parent().hide();
+            endDateInput.parent().hide();
+        }
+    }
+    
+    dateRangeSelect.change(toggleCustomDates);
+    toggleCustomDates(); // Initial call
+});
+
+// Render chart if data exists
+{% if chart_data %}
+$(document).ready(function() {
+    const chartData = JSON.parse('{{ chart_data|safe }}');
+    const ctx = document.getElementById('attendanceChart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: chartData.type,
+        data: {
+            labels: chartData.labels,
+            datasets: chartData.datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'Attendance Analysis'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Number of Students'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: chartData.labels[0].includes('/') ? 'Date' : 'Category'
+                    }
+                }
+            }
+        }
+    });
+});
+{% endif %}
+
+// Export functions
+function exportReport(format) {
+    const params = new URLSearchParams(window.location.search);
+    
+    if (format === 'print') {
+        window.print();
+        return;
+    }
+    
+    let url = '';
+    switch(format) {
+        case 'pdf':
+            url = `{% url 'reports:export_report' 'attendance' %}?${params.toString()}&format=pdf`;
+            break;
+        case 'excel':
+            url = `{% url 'reports:export_report' 'attendance' %}?${params.toString()}&format=excel`;
+            break;
+        case 'csv':
+            url = `{% url 'reports:export_report' 'attendance' %}?${params.toString()}&format=csv`;
+            break;
+    }
+    
+    if (url) {
+        window.open(url, '_blank');
+    }
+}
+
+// Save report
+function saveThisReport() {
+    $('#saveReportModal').modal('show');
+}
+
+function submitSaveReport() {
+    const reportName = $('#reportName').val();
+    const description = $('#reportDescription').val();
+    const params = new URLSearchParams(window.location.search);
+    
+    $.ajax({
+        url: '{% url "reports:save_report" %}',
+        method: 'POST',
+        data: {
+            report_name: reportName,
+            report_type: 'attendance_report',
+            parameters: JSON.stringify(Object.fromEntries(params)),
+            data: JSON.stringify({
+                summary: {{ summary|safe }},
+                grouped_data: {{ grouped_data|safe }}
+            }),
+            csrfmiddlewaretoken: '{{ csrf_token }}'
+        },
+        success: function(response) {
+            if (response.success) {
+                alert('Report saved successfully!');
+                $('#saveReportModal').modal('hide');
+            } else {
+                alert('Failed to save report.');
+            }
+        },
+        error: function() {
+            alert('Network error. Please try again.');
+        }
+    });
+}
+
+// Schedule report (placeholder)
+function scheduleThisReport() {
+    alert('Report scheduling feature will be available soon!');
+}
+</script>
+{% endblock %}

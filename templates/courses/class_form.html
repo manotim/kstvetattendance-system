@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if class %}Edit {{ class.class_code }}{% else %}Create New Class{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card shadow">
+            <div class="card-header bg-{% if class %}warning{% else %}primary{% endif %} text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-{% if class %}edit{% else %}plus-circle{% endif %}"></i>
+                    {% if class %}Edit Class: {{ class.class_code }}{% else %}Create New Class{% endif %}
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                        <button type="submit" class="btn btn-{% if class %}warning{% else %}primary{% endif %}">
+                            <i class="fas fa-save"></i>
+                            {% if class %}Update Class{% else %}Create Class{% endif %}
+                        </button>
+                        <a href="{% if class %}{% url 'courses:class_detail' class.pk %}{% else %}{% url 'courses:class_list' %}{% endif %}" 
+                           class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

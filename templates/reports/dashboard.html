@@ -1,0 +1,529 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Reports Dashboard - TVET Attendance System{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.css">
+<style>
+    .widget-card {
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .widget-header {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-bottom: 1px solid #dee2e6;
+        border-radius: 10px 10px 0 0;
+    }
+    .widget-body {
+        padding: 15px;
+        min-height: 200px;
+    }
+    .stat-card {
+        transition: transform 0.3s;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    .quick-report-btn {
+        transition: all 0.3s;
+    }
+    .quick-report-btn:hover {
+        transform: scale(1.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-chart-line"></i> Analytics & Reports Dashboard</h2>
+    <div class="btn-group">
+        <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">
+            <i class="fas fa-download"></i> Generate Report
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'reports:attendance_report' %}">Attendance Report</a></li>
+            <li><a class="dropdown-item" href="{% url 'reports:student_attendance_report' %}">Student Attendance</a></li>
+            <li><a class="dropdown-item" href="{% url 'reports:class_attendance_report' %}">Class Attendance</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{% url 'reports:export_report' 'attendance' %}">Export Reports</a></li>
+        </ul>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-primary stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Today's Attendance</h6>
+                        <h2 class="mb-0">{{ today_attendance.present|default:0 }}</h2>
+                        <small>out of {{ today_attendance.total|default:0 }}</small>
+                    </div>
+                    <i class="fas fa-clipboard-check fa-3x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-success stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Active Students</h6>
+                        <h2 class="mb-0">{{ student_stats.active }}</h2>
+                        <small>Total: {{ student_stats.total }}</small>
+                    </div>
+                    <i class="fas fa-users fa-3x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-warning stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Active Classes</h6>
+                        <h2 class="mb-0">{{ class_stats.active }}</h2>
+                        <small>Instructors: {{ class_stats.instructors }}</small>
+                    </div>
+                    <i class="fas fa-chalkboard-teacher fa-3x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-info stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Gender Distribution</h6>
+                        <h2 class="mb-0">{{ student_stats.male|add:student_stats.female }}</h2>
+                        <small>M: {{ student_stats.male }} | F: {{ student_stats.female }}</small>
+                    </div>
+                    <i class="fas fa-venus-mars fa-3x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Report Buttons -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Reports</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3 mb-3">
+                        <button class="btn btn-outline-primary quick-report-btn w-100" 
+                                onclick="generateQuickReport('today')">
+                            <i class="fas fa-calendar-day fa-2x mb-2"></i><br>
+                            Today's Summary
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <button class="btn btn-outline-success quick-report-btn w-100"
+                                onclick="generateQuickReport('student_count')">
+                            <i class="fas fa-users fa-2x mb-2"></i><br>
+                            Student Count
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <button class="btn btn-outline-warning quick-report-btn w-100"
+                                onclick="generateQuickReport('class_attendance')">
+                            <i class="fas fa-chalkboard fa-2x mb-2"></i><br>
+                            Weekly Attendance
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{% url 'reports:attendance_report' %}" class="btn btn-outline-info quick-report-btn w-100">
+                            <i class="fas fa-chart-bar fa-2x mb-2"></i><br>
+                            Custom Report
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dashboard Widgets -->
+<div class="row" id="widgets-container">
+    {% for widget in widgets %}
+    <div class="col-md-{{ widget.width }}">
+        <div class="widget-card">
+            <div class="widget-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-{{ widget.widget_type|slice:'0:1' }}"></i>
+                    {{ widget.name }}
+                    {% if widget.refresh_interval > 0 %}
+                    <small class="text-muted float-end">
+                        <i class="fas fa-sync-alt"></i> {{ widget.refresh_interval }}min
+                    </small>
+                    {% endif %}
+                </h6>
+            </div>
+            <div class="widget-body">
+                <div id="widget-{{ widget.id }}" data-widget-id="{{ widget.id }}" 
+                     data-type="{{ widget.widget_type }}" data-chart-type="{{ widget.chart_type }}">
+                    <!-- Widget content will be loaded via AJAX -->
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading widget...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-chart-pie fa-3x text-muted mb-3"></i>
+                <h5>No widgets configured</h5>
+                <p class="text-muted">Configure dashboard widgets in the admin panel.</p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Recent Reports -->
+{% if recent_reports %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Recent Reports</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Report Name</th>
+                                <th>Type</th>
+                                <th>Generated On</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for report in recent_reports %}
+                            <tr>
+                                <td>{{ report.report_name }}</td>
+                                <td>
+                                    <span class="badge bg-info">{{ report.get_report_type_display }}</span>
+                                </td>
+                                <td>{{ report.generated_at|date:"d/m/Y H:i" }}</td>
+                                <td>
+                                    {% if report.is_ready %}
+                                    <span class="badge bg-success">Ready</span>
+                                    {% else %}
+                                    <span class="badge bg-warning">Processing</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'reports:view_saved' report.id %}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Quick Report Modal -->
+<div class="modal fade" id="quickReportModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="quickReportTitle">Quick Report</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="quickReportContent">
+                <!-- Content will be loaded via JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="saveQuickReport()">
+                    <i class="fas fa-save"></i> Save Report
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+// Load widget data via AJAX
+function loadWidgets() {
+    $('[id^="widget-"]').each(function() {
+        const widgetId = $(this).data('widget-id');
+        const widgetDiv = $(this);
+        
+        $.ajax({
+            url: `/reports/widget/${widgetId}/data/`,
+            method: 'GET',
+            success: function(data) {
+                if (data.error) {
+                    widgetDiv.html(`<div class="text-danger text-center py-4">${data.error}</div>`);
+                    return;
+                }
+                
+                // Render widget based on type
+                const widgetType = widgetDiv.data('type');
+                const chartType = widgetDiv.data('chart-type');
+                
+                if (chartType && data.chartData) {
+                    renderChart(widgetDiv, data.chartData);
+                } else if (data.html) {
+                    widgetDiv.html(data.html);
+                } else {
+                    renderSimpleWidget(widgetDiv, data);
+                }
+            },
+            error: function() {
+                widgetDiv.html('<div class="text-danger text-center py-4">Failed to load widget</div>');
+            }
+        });
+    });
+}
+
+// Render Chart.js chart
+function renderChart(container, chartData) {
+    const canvas = document.createElement('canvas');
+    container.html(canvas);
+    
+    new Chart(canvas.getContext('2d'), {
+        type: chartData.type || 'bar',
+        data: {
+            labels: chartData.labels,
+            datasets: chartData.datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: chartData.title || ''
+                }
+            }
+        }
+    });
+}
+
+// Render simple widget
+function renderSimpleWidget(container, data) {
+    let html = '';
+    
+    if (data.title) {
+        html += `<h6 class="text-center mb-3">${data.title}</h6>`;
+    }
+    
+    if (data.stats) {
+        html += '<div class="row text-center">';
+        for (const [key, value] of Object.entries(data.stats)) {
+            html += `
+            <div class="col-4 mb-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="mb-0">${value}</h5>
+                        <small class="text-muted">${key}</small>
+                    </div>
+                </div>
+            </div>`;
+        }
+        html += '</div>';
+    }
+    
+    if (data.table) {
+        html += '<div class="table-responsive"><table class="table table-sm">';
+        html += '<thead><tr>';
+        for (const header of data.table.headers) {
+            html += `<th>${header}</th>`;
+        }
+        html += '</tr></thead><tbody>';
+        
+        for (const row of data.table.rows) {
+            html += '<tr>';
+            for (const cell of row) {
+                html += `<td>${cell}</td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</tbody></table></div>';
+    }
+    
+    container.html(html);
+}
+
+// Generate quick report
+function generateQuickReport(type) {
+    $.ajax({
+        url: '{% url "reports:quick_report" %}',
+        method: 'GET',
+        data: { type: type },
+        success: function(data) {
+            $('#quickReportTitle').text(data.report_type);
+            
+            let content = `
+                <div class="mb-3">
+                    <h6>Report Details</h6>
+                    <p><strong>Date:</strong> ${data.date || data.period || 'N/A'}</p>
+                </div>`;
+            
+            if (data.attendance_rate !== undefined) {
+                content += `
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h5 class="card-title">${data.attendance_rate}%</h5>
+                                <p class="card-text">Attendance Rate</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h5 class="card-title">${data.present || 0}</h5>
+                                <p class="card-text">Present Students</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+            
+            if (data.course_data) {
+                content += `
+                <h6>Course Distribution</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Course</th>
+                                <th>Student Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+                
+                for (const course of data.course_data) {
+                    content += `
+                    <tr>
+                        <td>${course.course}</td>
+                        <td>${course.count}</td>
+                    </tr>`;
+                }
+                
+                content += `
+                        </tbody>
+                    </table>
+                </div>`;
+            }
+            
+            if (data.class_data) {
+                content += `
+                <h6>Class Attendance</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Class</th>
+                                <th>Sessions</th>
+                                <th>Present</th>
+                                <th>Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+                
+                for (const cls of data.class_data) {
+                    content += `
+                    <tr>
+                        <td>${cls.class}</td>
+                        <td>${cls.total_sessions}</td>
+                        <td>${cls.present}</td>
+                        <td>${cls.rate}%</td>
+                    </tr>`;
+                }
+                
+                content += `
+                        </tbody>
+                    </table>
+                </div>`;
+            }
+            
+            $('#quickReportContent').html(content);
+            $('#quickReportModal').modal('show');
+        },
+        error: function() {
+            alert('Failed to generate quick report.');
+        }
+    });
+}
+
+// Save quick report
+function saveQuickReport() {
+    const reportName = prompt('Enter a name for this report:', 'Quick Report - ' + new Date().toLocaleDateString());
+    
+    if (reportName) {
+        $.ajax({
+            url: '{% url "reports:save_report" %}',
+            method: 'POST',
+            data: {
+                report_name: reportName,
+                report_type: 'quick_report',
+                parameters: JSON.stringify({}),
+                data: JSON.stringify({}),
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            success: function(response) {
+                if (response.success) {
+                    alert('Report saved successfully!');
+                    $('#quickReportModal').modal('hide');
+                } else {
+                    alert('Failed to save report.');
+                }
+            },
+            error: function() {
+                alert('Network error. Please try again.');
+            }
+        });
+    }
+}
+
+// Initialize on page load
+$(document).ready(function() {
+    loadWidgets();
+    
+    // Auto-refresh widgets with interval
+    setInterval(loadWidgets, 60000); // Refresh every minute
+});
+</script>
+{% endblock %}
