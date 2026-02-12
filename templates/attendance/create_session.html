@@ -1,0 +1,314 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create Attendance Session - TVET Attendance System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        padding: 30px;
+        margin-bottom: 30px;
+    }
+    
+    .form-header {
+        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+    }
+    
+    .form-header h2 {
+        color: #0d6efd;
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+    
+    .form-header p {
+        color: #6c757d;
+        margin-bottom: 0;
+    }
+    
+    .method-card {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-bottom: 15px;
+    }
+    
+    .method-card:hover {
+        border-color: #0d6efd;
+        background-color: #f0f7ff;
+    }
+    
+    .method-card.selected {
+        border-color: #0d6efd;
+        background-color: #e7f1ff;
+    }
+    
+    .method-icon {
+        font-size: 2rem;
+        color: #0d6efd;
+        margin-bottom: 10px;
+    }
+    
+    .method-title {
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+    
+    .method-desc {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-bottom: 0;
+    }
+    
+    .attendance-method-section {
+        margin-top: 20px;
+    }
+    
+    .time-input-group {
+        display: flex;
+        gap: 15px;
+    }
+    
+    .time-input-group .form-group {
+        flex: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'attendance:dashboard' %}">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                <i class="fas fa-plus-circle"></i> Create Session
+            </li>
+        </ol>
+    </nav>
+
+    <div class="form-container">
+        <div class="form-header">
+            <h2><i class="fas fa-calendar-plus me-2"></i> Create Attendance Session</h2>
+            <p>Fill in the details to create a new attendance session for your class</p>
+        </div>
+
+        <form method="post" id="sessionForm">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="row">
+                <!-- Left Column - Main Form -->
+                <div class="col-md-8">
+                    <!-- Class Selection -->
+                    <div class="mb-4">
+                        <label for="{{ form.class_session.id_for_label }}" class="form-label fw-bold">
+                            <i class="fas fa-chalkboard-teacher me-1"></i> Select Class
+                        </label>
+                        {{ form.class_session }}
+                        {% if form.class_session.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.class_session.errors }}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">Choose the class for this attendance session</div>
+                    </div>
+
+                    <!-- Session Date -->
+                    <div class="mb-4">
+                        <label for="{{ form.session_date.id_for_label }}" class="form-label fw-bold">
+                            <i class="fas fa-calendar me-1"></i> Session Date
+                        </label>
+                        {{ form.session_date }}
+                        {% if form.session_date.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.session_date.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Time Fields -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">
+                            <i class="fas fa-clock me-1"></i> Session Time
+                        </label>
+                        <div class="time-input-group">
+                            <div class="form-group">
+                                {{ form.start_time }}
+                                {% if form.start_time.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.start_time.errors }}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">Start Time</div>
+                            </div>
+                            <div class="form-group">
+                                {{ form.end_time }}
+                                {% if form.end_time.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.end_time.errors }}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">End Time</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Topic Covered -->
+                    <div class="mb-4">
+                        <label for="{{ form.topic_covered.id_for_label }}" class="form-label fw-bold">
+                            <i class="fas fa-book me-1"></i> Topic Covered
+                        </label>
+                        {{ form.topic_covered }}
+                        {% if form.topic_covered.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.topic_covered.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Venue -->
+                    <div class="mb-4">
+                        <label for="{{ form.venue.id_for_label }}" class="form-label fw-bold">
+                            <i class="fas fa-map-marker-alt me-1"></i> Venue
+                        </label>
+                        {{ form.venue }}
+                        {% if form.venue.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.venue.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Right Column - Attendance Method -->
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h5 class="card-title fw-bold mb-3">
+                                <i class="fas fa-check-circle me-1"></i> Attendance Method
+                            </h5>
+                            
+                            <div class="attendance-method-section">
+                                {{ form.attendance_method }}
+                                {% if form.attendance_method.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.attendance_method.errors }}
+                                    </div>
+                                {% endif %}
+                                
+                                <div id="methodHelp" class="mt-3">
+                                    <!-- Method descriptions will be shown via JS -->
+                                </div>
+                            </div>
+                            
+                            <hr>
+                            
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-1"></i>
+                                <strong>Note:</strong> All enrolled students will be marked as absent by default. You can update attendance after session creation.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="mt-4 pt-3 border-top">
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="{% url 'attendance:dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> Create Session
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Add Bootstrap classes to form inputs
+        $('#{{ form.class_session.id_for_label }}').addClass('form-select');
+        $('#{{ form.session_date.id_for_label }}').addClass('form-control');
+        $('#{{ form.start_time.id_for_label }}').addClass('form-control');
+        $('#{{ form.end_time.id_for_label }}').addClass('form-control');
+        $('#{{ form.topic_covered.id_for_label }}').addClass('form-control');
+        $('#{{ form.venue.id_for_label }}').addClass('form-control');
+        
+        // Style the attendance method radio buttons
+        $('#{{ form.attendance_method.id_for_label }}').addClass('form-check-input');
+        
+        // Wrap radio buttons in styled cards
+        const methodContainer = $('#{{ form.attendance_method.id_for_label }}').parent();
+        methodContainer.find('.form-check').each(function() {
+            const method = $(this).find('input').val();
+            let icon, description;
+            
+            switch(method) {
+                case 'qr_code':
+                    icon = 'fa-qrcode';
+                    description = 'Students scan QR code to mark attendance';
+                    break;
+                case 'manual':
+                    icon = 'fa-pen';
+                    description = 'Manually mark attendance for each student';
+                    break;
+                case 'biometric':
+                    icon = 'fa-fingerprint';
+                    description = 'Use biometric system for attendance';
+                    break;
+                case 'mobile':
+                    icon = 'fa-mobile-alt';
+                    description = 'Students mark via mobile app';
+                    break;
+            }
+            
+            $(this).addClass('method-card text-center');
+            $(this).prepend(`
+                <div class="method-icon">
+                    <i class="fas ${icon}"></i>
+                </div>
+            `);
+            
+            const label = $(this).find('.form-check-label');
+            label.addClass('method-title');
+            
+            $(this).append(`
+                <p class="method-desc">${description}</p>
+            `);
+        });
+        
+        // Method selection styling
+        $('.method-card').click(function() {
+            $(this).find('input[type="radio"]').prop('checked', true);
+            $('.method-card').removeClass('selected');
+            $(this).addClass('selected');
+        });
+        
+        // Check if any method is pre-selected
+        $('.method-card input[type="radio"]:checked').closest('.method-card').addClass('selected');
+    });
+</script>
+{% endblock %}

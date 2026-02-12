@@ -1,3 +1,4 @@
+# attendance/views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
@@ -120,6 +121,7 @@ def attendance_dashboard(request):
     
     return render(request, 'attendance/dashboard.html', context)
 
+
 @login_required
 @permission_required('attendance.add_attendancesession', raise_exception=True)
 def create_session(request):
@@ -155,6 +157,7 @@ def create_session(request):
     
     context = {'form': form}
     return render(request, 'attendance/create_session.html', context)
+
 
 @login_required
 def mark_attendance(request, session_id):
@@ -484,6 +487,7 @@ def attendance_report(request):
         }
     
     return render(request, 'attendance/report.html', context)
+
 
 @login_required
 def student_attendance_history(request, student_id=None):

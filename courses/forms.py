@@ -1,3 +1,4 @@
+# courses/forms.py
 from django import forms
 from .models import Course, Class
 from accounts.models import User

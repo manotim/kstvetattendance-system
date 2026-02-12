@@ -10,6 +10,7 @@ urlpatterns = [
     path('', dashboard_view, name='dashboard'),
     path('accounts/', include('accounts.urls')),
      path('students/', include('students.urls')),
+     path('courses/', include('courses.urls')),
      path('attendance/', include('attendance.urls')),
      path('reports/', include('reports.urls')),
     

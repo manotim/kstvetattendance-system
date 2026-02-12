@@ -1,5 +1,7 @@
+# accounts/views.py
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import logout
 from django.contrib import messages
 from .forms import CustomUserCreationForm
 
@@ -21,3 +23,8 @@ def register_view(request):
 @login_required
 def profile_view(request):
     return render(request, 'accounts/profile.html')
+
+def logout_view(request):
+    logout(request)
+    messages.success(request, 'You have been successfully logged out.')
+    return redirect('login')

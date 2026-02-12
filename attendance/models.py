@@ -1,3 +1,4 @@
+# attendance/models.py
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -84,6 +85,7 @@ class AttendanceSession(models.Model):
         self.closed_at = timezone.now()
         self.calculate_stats()
         self.save()
+
 
 class AttendanceRecord(models.Model):
     STATUS_CHOICES = (

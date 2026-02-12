@@ -1,3 +1,4 @@
+# attendance/forms.py
 from django import forms
 from django.utils import timezone
 from .models import AttendanceSession, AttendanceRecord, ExcuseApplication
@@ -26,6 +27,7 @@ class AttendanceSessionForm(forms.ModelForm):
                 instructor=user,
                 is_active=True
             )
+
 
 class ManualAttendanceForm(forms.Form):
     """Form for manual attendance marking"""

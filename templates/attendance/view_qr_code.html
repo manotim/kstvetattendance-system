@@ -1,0 +1,371 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}QR Code - {{ session.class_session.class_code }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .qr-container {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        padding: 40px;
+        text-align: center;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .qr-code-wrapper {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+        border-radius: 20px;
+        display: inline-block;
+        margin-bottom: 30px;
+    }
+    
+    .qr-code {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+    }
+    
+    .timer-circle {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 20px auto;
+        color: white;
+        box-shadow: 0 10px 30px rgba(245, 87, 108, 0.3);
+    }
+    
+    .timer-number {
+        font-size: 3rem;
+        font-weight: bold;
+        line-height: 1;
+    }
+    
+    .timer-label {
+        font-size: 1rem;
+        opacity: 0.9;
+    }
+    
+    .attendance-counter {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 20px;
+        margin-top: 30px;
+    }
+    
+    .scan-animation {
+        position: relative;
+    }
+    
+    .scan-line {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(to right, transparent, #0d6efd, transparent);
+        animation: scan 2s linear infinite;
+    }
+    
+    @keyframes scan {
+        0% { top: 0; }
+        100% { top: 100%; }
+    }
+    
+    .instruction-step {
+        background: white;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    
+    .step-number {
+        width: 30px;
+        height: 30px;
+        background: #0d6efd;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        margin-right: 15px;
+    }
+    
+    .refresh-btn {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'attendance:dashboard' %}">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'attendance:mark_attendance' session.id %}">
+                    {{ session.class_session.class_code }}
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                <i class="fas fa-qrcode"></i> QR Code
+            </li>
+        </ol>
+    </nav>
+
+    <div class="qr-container">
+        <h2 class="mb-3">
+            <i class="fas fa-qrcode me-2" style="color: #667eea;"></i>
+            QR Code Attendance
+        </h2>
+        <p class="text-muted mb-4">
+            {{ session.class_session.class_code }} - {{ session.topic_covered }}
+        </p>
+        
+        <!-- Timer Display -->
+        <div class="timer-circle">
+            <div>
+                <div class="timer-number" id="timer">15:00</div>
+                <div class="timer-label">minutes remaining</div>
+            </div>
+        </div>
+        
+        <!-- QR Code -->
+        <div class="qr-code-wrapper">
+            <div class="qr-code scan-animation">
+                <div class="scan-line"></div>
+                {% if qr_code %}
+                    <img src="{{ qr_code }}" alt="QR Code" class="img-fluid" style="width: 250px;">
+                {% else %}
+                    <div id="qrcode" style="width: 250px; height: 250px; margin: 0 auto;"></div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Session Info -->
+        <div class="mb-4">
+            <span class="badge bg-success fs-6">
+                <i class="fas fa-check-circle me-1"></i> Active
+            </span>
+            <span class="badge bg-info fs-6 ms-2">
+                <i class="fas fa-users me-1"></i> {{ attendance_count }} marked
+            </span>
+        </div>
+        
+        <!-- QR Code Data (Hidden) -->
+        <div class="alert alert-secondary text-start">
+            <small>
+                <i class="fas fa-link me-1"></i>
+                <strong>QR Data:</strong> {{ session.qr_code_data }}
+            </small>
+        </div>
+        
+        <!-- Expiry Info -->
+        <div class="alert alert-warning" id="expiryAlert">
+            <i class="fas fa-clock me-2"></i>
+            QR Code expires at <strong>{{ session.qr_code_expiry|time:"H:i:s" }}</strong>
+            <span id="expiryWarning" class="d-none">
+                <br><i class="fas fa-exclamation-triangle me-1"></i>
+                Less than 5 minutes remaining!
+            </span>
+        </div>
+        
+        <!-- Instructions -->
+        <div class="text-start bg-light p-4 rounded-3 mb-4">
+            <h6 class="mb-3"><i class="fas fa-info-circle me-2"></i>Instructions for Students:</h6>
+            <div class="instruction-step">
+                <div class="step-number">1</div>
+                <div>Open your device camera or QR scanner app</div>
+            </div>
+            <div class="instruction-step">
+                <div class="step-number">2</div>
+                <div>Scan the QR code displayed above</div>
+            </div>
+            <div class="instruction-step">
+                <div class="step-number">3</div>
+                <div>Confirm your attendance when prompted</div>
+            </div>
+            <div class="instruction-step">
+                <div class="step-number">4</div>
+                <div>Wait for the confirmation message</div>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="d-grid gap-3">
+            <a href="{% url 'attendance:mark_attendance' session.id %}" class="btn btn-primary">
+                <i class="fas fa-check-circle me-1"></i> Mark Attendance Manually
+            </a>
+            
+            <div class="row g-2">
+                <div class="col-6">
+                    <button class="btn btn-outline-secondary w-100" onclick="downloadQR()">
+                        <i class="fas fa-download me-1"></i> Download
+                    </button>
+                </div>
+                <div class="col-6">
+                    <button class="btn btn-outline-primary w-100 refresh-btn" onclick="refreshQR()">
+                        <i class="fas fa-sync-alt me-1"></i> Refresh
+                    </button>
+                </div>
+            </div>
+            
+            <button class="btn btn-outline-danger" onclick="window.print()">
+                <i class="fas fa-print me-1"></i> Print
+            </button>
+        </div>
+    </div>
+    
+    <!-- Real-time Attendance Updates -->
+    <div class="mt-4">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">
+                    <i class="fas fa-clock me-2"></i>Recent Attendance
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="recentAttendance">
+                    <!-- Will be populated via AJAX -->
+                    <p class="text-muted text-center mb-0">Waiting for students to scan...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Generate QR code if not provided
+        {% if not qr_code %}
+            new QRCode(document.getElementById("qrcode"), {
+                text: "{{ session.qr_code_data }}",
+                width: 250,
+                height: 250
+            });
+        {% endif %}
+        
+        // Start timer
+        startExpiryTimer();
+        
+        // Poll for attendance updates
+        setInterval(updateAttendanceCount, 5000);
+    });
+    
+    function startExpiryTimer() {
+        const expiryTime = new Date("{{ session.qr_code_expiry|date:'Y-m-d' }}T{{ session.qr_code_expiry|time:'H:i:s' }}").getTime();
+        
+        const timer = setInterval(function() {
+            const now = new Date().getTime();
+            const distance = expiryTime - now;
+            
+            // Calculate minutes and seconds
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+            
+            // Update timer display
+            document.getElementById("timer").innerHTML = 
+                String(minutes).padStart(2, '0') + ":" + 
+                String(seconds).padStart(2, '0');
+            
+            // Show warning if less than 5 minutes
+            if (minutes < 5) {
+                document.getElementById("expiryWarning").classList.remove('d-none');
+                document.getElementById("expiryAlert").classList.add('alert-danger');
+                document.getElementById("expiryAlert").classList.remove('alert-warning');
+            }
+            
+            // When timer expires
+            if (distance < 0) {
+                clearInterval(timer);
+                document.getElementById("timer").innerHTML = "00:00";
+                document.getElementById("expiryAlert").innerHTML = 
+                    '<i class="fas fa-clock me-2"></i>QR Code has expired. Please refresh to generate a new code.';
+                document.getElementById("expiryAlert").classList.add('alert-danger');
+                document.getElementById("expiryAlert").classList.remove('alert-warning');
+            }
+        }, 1000);
+    }
+    
+    function refreshQR() {
+        if (confirm('Generate a new QR code? The current code will expire immediately.')) {
+            $.ajax({
+                url: window.location.pathname + 'refresh/',
+                type: 'POST',
+                headers: {'X-CSRFToken': '{{ csrf_token }}'},
+                success: function(response) {
+                    if (response.success) {
+                        location.reload();
+                    }
+                }
+            });
+        }
+    }
+    
+    function downloadQR() {
+        const canvas = document.querySelector('#qrcode canvas, .qr-code img');
+        if (canvas) {
+            const link = document.createElement('a');
+            link.download = 'attendance-qr-{{ session.id }}.png';
+            link.href = canvas.toDataURL ? canvas.toDataURL() : canvas.src;
+            link.click();
+        }
+    }
+    
+    function updateAttendanceCount() {
+        $.ajax({
+            url: window.location.pathname + 'updates/',
+            type: 'GET',
+            success: function(response) {
+                if (response.count !== undefined) {
+                    // Update attendance count
+                    $('.badge.bg-info').html('<i class="fas fa-users me-1"></i> ' + response.count + ' marked');
+                    
+                    // Update recent attendance list
+                    if (response.recent && response.recent.length > 0) {
+                        let html = '<div class="list-group">';
+                        response.recent.forEach(function(record) {
+                            html += `
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>${record.student_name}</strong>
+                                        <br><small class="text-muted">${record.time}</small>
+                                    </div>
+                                    <span class="badge bg-success">Present</span>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        $('#recentAttendance').html(html);
+                    }
+                }
+            }
+        });
+    }
+</script>
+{% endblock %}
