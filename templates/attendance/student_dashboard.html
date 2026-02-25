@@ -1,0 +1,516 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Attendance Dashboard - TVET Attendance System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .welcome-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        text-align: center;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        transition: transform 0.3s;
+        height: 100%;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .stat-icon {
+        width: 70px;
+        height: 70px;
+        line-height: 70px;
+        border-radius: 50%;
+        margin: 0 auto 20px;
+        font-size: 28px;
+    }
+    
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .attendance-circle {
+        width: 150px;
+        height: 150px;
+        margin: 20px auto;
+        position: relative;
+    }
+    
+    .attendance-percentage {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #333;
+    }
+    
+    .session-card {
+        border-left: 4px solid;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        transition: all 0.3s;
+    }
+    
+    .session-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .session-card.active {
+        border-left-color: #28a745;
+        background: #f0fff4;
+    }
+    
+    .session-card.upcoming {
+        border-left-color: #ffc107;
+    }
+    
+    .session-card.past {
+        border-left-color: #6c757d;
+    }
+    
+    .status-badge {
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .status-present { background: #d4edda; color: #155724; }
+    .status-absent { background: #f8d7da; color: #721c24; }
+    .status-late { background: #fff3cd; color: #856404; }
+    
+    .quick-action-btn {
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.3s;
+        background: white;
+        display: block;
+        text-decoration: none;
+        color: #333;
+    }
+    
+    .quick-action-btn:hover {
+        border-color: #667eea;
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.2);
+        color: #667eea;
+    }
+    
+    .quick-action-icon {
+        font-size: 2rem;
+        margin-bottom: 10px;
+    }
+    
+    .progress-custom {
+        height: 10px;
+        border-radius: 5px;
+        background: #e9ecef;
+        margin: 10px 0;
+    }
+    
+    .progress-bar-custom {
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        border-radius: 5px;
+        height: 100%;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Welcome Card -->
+    <div class="welcome-card">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-3">
+                    <i class="fas fa-graduation-cap me-2"></i>
+                    Welcome back, {{ student.user.get_full_name|default:student.user.username }}!
+                </h2>
+                <p class="mb-2">
+                    <i class="fas fa-id-card me-2"></i> 
+                    Admission Number: <strong>{{ student.admission_number }}</strong>
+                </p>
+                <p class="mb-2">
+                    <i class="fas fa-book me-2"></i> 
+                    Course: <strong>{{ student.course|default:"Not Assigned" }}</strong>
+                </p>
+                <p class="mb-0">
+                    <i class="fas fa-calendar me-2"></i> 
+                    Current Class: <strong>{{ student.current_class.name|default:"Not Assigned" }}</strong>
+                </p>
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="attendance-circle">
+                    <canvas id="attendanceChart" width="150" height="150"></canvas>
+                    <div class="attendance-percentage">{{ attendance_rate }}%</div>
+                </div>
+                <p class="mb-0">Overall Attendance</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-success bg-opacity-10 text-success">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-value text-success">{{ present_count }}</div>
+                <div class="stat-label">Present</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-value text-warning">{{ late_count }}</div>
+                <div class="stat-label">Late</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-danger bg-opacity-10 text-danger">
+                    <i class="fas fa-times-circle"></i>
+                </div>
+                <div class="stat-value text-danger">{{ absent_count }}</div>
+                <div class="stat-label">Absent</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <div class="stat-value">{{ total_sessions }}</div>
+                <div class="stat-label">Total Sessions</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Row -->
+    <div class="row">
+        <!-- Left Column - Active Sessions -->
+        <div class="col-lg-8">
+            <!-- Active Sessions -->
+            <div class="card mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-play-circle text-success me-2"></i>
+                        Active Sessions
+                    </h5>
+                    <span class="badge bg-success">Live Now</span>
+                </div>
+                <div class="card-body">
+                    {% if active_sessions %}
+                        {% for session in active_sessions %}
+                        <div class="session-card active p-3">
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
+                                    <h6 class="mb-1">{{ session.class_session.course.code }} - {{ session.class_session.name }}</h6>
+                                    <p class="mb-1 text-muted">
+                                        <i class="fas fa-chalkboard-teacher me-1"></i> {{ session.instructor.get_full_name }}
+                                    </p>
+                                    <p class="mb-1">
+                                        <i class="fas fa-clock me-1"></i> {{ session.start_time|time:"H:i" }} - {{ session.end_time|time:"H:i" }}
+                                    </p>
+                                    <p class="mb-0">
+                                        <i class="fas fa-map-marker-alt me-1"></i> {{ session.venue|default:"Online" }}
+                                    </p>
+                                </div>
+                                <div class="col-md-4">
+                                    <span class="badge bg-info me-2">{{ session.get_attendance_method_display }}</span>
+                                    <span class="badge bg-success">In Progress</span>
+                                </div>
+                                <div class="col-md-2 text-end">
+                                    {% if session.attendance_method == 'qr_code' %}
+                                    <a href="{% url 'attendance:qr_attendance' session.id %}" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-qrcode me-1"></i> Scan QR
+                                    </a>
+                                    {% else %}
+                                    <a href="{% url 'attendance:mark_attendance' session.id %}" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-check-circle me-1"></i> Check In
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center py-3">
+                            <i class="fas fa-info-circle me-1"></i>
+                            No active attendance sessions at the moment.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Today's Sessions -->
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-day text-primary me-2"></i>
+                        Today's Sessions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if today_sessions %}
+                        {% for session in today_sessions %}
+                        <div class="session-card past p-3">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <h6 class="mb-1">{{ session.class_session.course.code }} - {{ session.class_session.name }}</h6>
+                                    <p class="mb-1">
+                                        <i class="fas fa-clock me-1"></i> {{ session.start_time|time:"H:i" }} - {{ session.end_time|time:"H:i" }}
+                                    </p>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <span class="badge bg-secondary">{{ session.get_status_display }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center py-3">No sessions scheduled for today.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Attendance History -->
+            <div class="card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history text-info me-2"></i>
+                        Recent Attendance
+                    </h5>
+                    <a href="{% url 'attendance:student_history' %}" class="btn btn-outline-primary btn-sm">
+                        View All History <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if recent_attendance %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Class</th>
+                                        <th>Session</th>
+                                        <th>Status</th>
+                                        <th>Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for record in recent_attendance %}
+                                    <tr>
+                                        <td>{{ record.session.session_date|date:"d/m/Y" }}</td>
+                                        <td>{{ record.session.class_session.course.code }}</td>
+                                        <td>{{ record.session.start_time|time:"H:i" }} - {{ record.session.end_time|time:"H:i" }}</td>
+                                        <td>
+                                            <span class="status-badge status-{{ record.status }}">
+                                                {{ record.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if record.check_in_time %}
+                                                {{ record.check_in_time|time:"H:i" }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center py-3">No recent attendance records.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column - Quick Actions & Info -->
+        <div class="col-lg-4">
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bolt text-warning me-2"></i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <a href="{% url 'attendance:student_history' %}" class="quick-action-btn">
+                                <div class="quick-action-icon text-primary">
+                                    <i class="fas fa-calendar-check"></i>
+                                </div>
+                                <div>My History</div>
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{% url 'attendance:apply_excuse' %}" class="quick-action-btn">
+                                <div class="quick-action-icon text-warning">
+                                    <i class="fas fa-file-alt"></i>
+                                </div>
+                                <div>Apply Excuse</div>
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{% url 'courses:student_classes' %}" class="quick-action-btn">
+                                <div class="quick-action-icon text-success">
+                                    <i class="fas fa-book-open"></i>
+                                </div>
+                                <div>My Classes</div>
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{% url 'students:profile' %}" class="quick-action-btn">
+                                <div class="quick-action-icon text-info">
+                                    <i class="fas fa-user-circle"></i>
+                                </div>
+                                <div>My Profile</div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attendance Summary Card -->
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie text-primary me-2"></i>
+                        Attendance Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Overall Attendance Rate</span>
+                            <strong>{{ attendance_rate }}%</strong>
+                        </div>
+                        <div class="progress-custom">
+                            <div class="progress-bar-custom" style="width: {{ attendance_rate }}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span><i class="fas fa-circle text-success me-1"></i> Present</span>
+                            <span>{{ present_count }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span><i class="fas fa-circle text-warning me-1"></i> Late</span>
+                            <span>{{ late_count }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span><i class="fas fa-circle text-danger me-1"></i> Absent</span>
+                            <span>{{ absent_count }}</span>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="text-center">
+                        <p class="mb-1"><strong>Attendance Status</strong></p>
+                        {% if attendance_rate >= 75 %}
+                            <span class="badge bg-success p-2">Good Standing</span>
+                        {% elif attendance_rate >= 50 %}
+                            <span class="badge bg-warning p-2">Needs Improvement</span>
+                        {% else %}
+                            <span class="badge bg-danger p-2">At Risk</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upcoming Sessions Card -->
+            {% if upcoming_sessions %}
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-alt text-info me-2"></i>
+                        Upcoming Sessions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for session in upcoming_sessions %}
+                    <div class="session-card upcoming p-3 mb-2">
+                        <h6 class="mb-1">{{ session.class_session.course.code }}</h6>
+                        <p class="mb-1 small">
+                            <i class="fas fa-calendar me-1"></i> {{ session.session_date|date:"d/m/Y" }}
+                            <br>
+                            <i class="fas fa-clock me-1"></i> {{ session.start_time|time:"H:i" }}
+                        </p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Create attendance chart
+    const ctx = document.getElementById('attendanceChart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            datasets: [{
+                data: [{{ present_count }}, {{ late_count }}, {{ absent_count }}],
+                backgroundColor: [
+                    '#28a745',
+                    '#ffc107',
+                    '#dc3545'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            cutout: '80%',
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    enabled: false
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

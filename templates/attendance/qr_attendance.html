@@ -1,0 +1,400 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}QR Attendance - {{ session.class_session.class_code }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .qr-scanner-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .scanner-card {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        padding: 30px;
+        text-align: center;
+    }
+    
+    .camera-preview {
+        width: 100%;
+        max-width: 400px;
+        height: 300px;
+        margin: 20px auto;
+        background: #f0f0f0;
+        border-radius: 15px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    #preview {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .scan-region {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 200px;
+        height: 200px;
+        border: 2px solid #28a745;
+        border-radius: 10px;
+        box-shadow: 0 0 0 9999px rgba(0,0,0,0.3);
+        pointer-events: none;
+        animation: pulse 2s infinite;
+    }
+    
+    .scan-line {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(to right, transparent, #28a745, transparent);
+        animation: scan 2s linear infinite;
+    }
+    
+    @keyframes scan {
+        0% { top: 0; }
+        100% { top: 100%; }
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.3); }
+        50% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.4); }
+        100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.3); }
+    }
+    
+    .method-tabs {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .method-tab {
+        padding: 10px 20px;
+        cursor: pointer;
+        border: none;
+        background: none;
+        font-size: 1rem;
+        color: #6c757d;
+        border-bottom: 2px solid transparent;
+        transition: all 0.3s;
+    }
+    
+    .method-tab.active {
+        color: #0d6efd;
+        border-bottom-color: #0d6efd;
+    }
+    
+    .session-info {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin: 20px 0;
+        text-align: left;
+    }
+    
+    .status-badge {
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+    }
+    
+    .status-active { background: #d4edda; color: #155724; }
+    .status-expired { background: #f8d7da; color: #721c24; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="qr-scanner-container">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'attendance:dashboard' %}">Dashboard</a>
+            </li>
+            <li class="breadcrumb-item active">QR Attendance</li>
+        </ol>
+    </nav>
+
+    <div class="scanner-card">
+        <h2 class="mb-3">
+            <i class="fas fa-qrcode me-2" style="color: #667eea;"></i>
+            Scan QR Code
+        </h2>
+        
+        <!-- Session Info -->
+        <div class="session-info">
+            <h5 class="mb-2">{{ session.class_session.course.code }} - {{ session.class_session.name }}</h5>
+            <p class="mb-1"><strong>Date:</strong> {{ session.session_date|date:"F j, Y" }}</p>
+            <p class="mb-1"><strong>Time:</strong> {{ session.start_time|time:"H:i" }} - {{ session.end_time|time:"H:i" }}</p>
+            <p class="mb-1"><strong>Instructor:</strong> {{ session.instructor.get_full_name }}</p>
+            <p class="mb-0">
+                <strong>Status:</strong>
+                <span class="status-badge status-{{ session.status }}">
+                    {{ session.get_status_display }}
+                </span>
+            </p>
+        </div>
+
+        <!-- Method Tabs -->
+        <div class="method-tabs">
+            <button class="method-tab active" onclick="switchMethod('scanner')">
+                <i class="fas fa-camera me-2"></i>Scan QR Code
+            </button>
+            <button class="method-tab" onclick="switchMethod('manual')">
+                <i class="fas fa-keyboard me-2"></i>Enter Code Manually
+            </button>
+        </div>
+
+        <!-- Scanner Method -->
+        <div id="scannerMethod" style="display: block;">
+            <div class="camera-preview">
+                <video id="preview" playsinline></video>
+                <div class="scan-region">
+                    <div class="scan-line"></div>
+                </div>
+            </div>
+            <p class="text-muted mb-3">
+                <i class="fas fa-info-circle me-1"></i>
+                Position the QR code within the frame to scan
+            </p>
+            
+            <div class="d-flex justify-content-center gap-2">
+                <button class="btn btn-outline-primary" onclick="startScanner()">
+                    <i class="fas fa-play me-1"></i> Start Camera
+                </button>
+                <button class="btn btn-outline-secondary" onclick="stopScanner()">
+                    <i class="fas fa-stop me-1"></i> Stop Camera
+                </button>
+            </div>
+        </div>
+
+        <!-- Manual Entry Method -->
+        <div id="manualMethod" style="display: none;">
+            <form method="post" id="qrForm">
+                {% csrf_token %}
+                {{ form|crispy }}
+                
+                <div class="mt-3">
+                    <p class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Enter the QR code data shown by your instructor
+                    </p>
+                    
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-check-circle me-1"></i> Verify Code
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Back Button -->
+        <div class="mt-4">
+            <a href="{% url 'attendance:student_dashboard' %}" class="btn btn-outline-secondary w-100">
+                <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="card mt-4">
+        <div class="card-header bg-white">
+            <h6 class="mb-0">
+                <i class="fas fa-question-circle me-2 text-primary"></i>
+                How to Scan QR Code
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 text-center">
+                    <div class="mb-2">1️⃣</div>
+                    <p class="small">Click "Start Camera" to activate your camera</p>
+                </div>
+                <div class="col-md-4 text-center">
+                    <div class="mb-2">2️⃣</div>
+                    <p class="small">Hold your device steady over the QR code</p>
+                </div>
+                <div class="col-md-4 text-center">
+                    <div class="mb-2">3️⃣</div>
+                    <p class="small">Wait for automatic recognition and confirmation</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/instascan@1.0.0/instascan.min.js"></script>
+<script>
+let scanner = null;
+
+function switchMethod(method) {
+    // Update tabs
+    document.querySelectorAll('.method-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    // Show/hide methods
+    if (method === 'scanner') {
+        document.getElementById('scannerMethod').style.display = 'block';
+        document.getElementById('manualMethod').style.display = 'none';
+        startScanner();
+    } else {
+        document.getElementById('scannerMethod').style.display = 'none';
+        document.getElementById('manualMethod').style.display = 'block';
+        stopScanner();
+    }
+}
+
+function startScanner() {
+    if (scanner) {
+        scanner.start();
+        return;
+    }
+    
+    Instascan.Camera.getCameras().then(function(cameras) {
+        if (cameras.length > 0) {
+            scanner = new Instascan.Scanner({
+                video: document.getElementById('preview'),
+                scanPeriod: 5,
+                mirror: false
+            });
+            
+            scanner.addListener('scan', function(content) {
+                // Handle successful scan
+                verifyQRCode(content);
+            });
+            
+            // Prefer back camera if available
+            const backCamera = cameras.find(camera => camera.name.toLowerCase().includes('back'));
+            scanner.start(backCamera || cameras[0]);
+            
+        } else {
+            alert('No cameras found. Please use manual entry.');
+            switchMethod('manual');
+        }
+    }).catch(function(error) {
+        console.error(error);
+        alert('Error accessing camera. Please use manual entry.');
+        switchMethod('manual');
+    });
+}
+
+function stopScanner() {
+    if (scanner) {
+        scanner.stop();
+    }
+}
+
+function verifyQRCode(qrData) {
+    // Show loading
+    Swal.fire({
+        title: 'Verifying QR Code...',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    // Send verification request
+    fetch('{% url "attendance:qr_attendance" session.id %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: `qr_code=${encodeURIComponent(qrData)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Attendance Marked!',
+                text: `Welcome, ${data.student_name}`,
+                timer: 2000,
+                showConfirmButton: false
+            }).then(() => {
+                window.location.href = '{% url "attendance:student_dashboard" %}';
+            });
+        } else if (data.student_selection) {
+            // Show student selection
+            Swal.fire({
+                title: 'Select Your Name',
+                html: data.student_select_html,
+                showCancelButton: true,
+                confirmButtonText: 'Mark Attendance',
+                preConfirm: () => {
+                    const studentId = document.getElementById('studentSelect').value;
+                    return fetch('{% url "attendance:qr_attendance" session.id %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: `qr_code=${encodeURIComponent(qrData)}&student_id=${studentId}`
+                    });
+                }
+            }).then((result) => {
+                if (result.value && result.value.ok) {
+                    Swal.fire('Success!', 'Attendance marked successfully', 'success');
+                    window.location.href = '{% url "attendance:student_dashboard" %}';
+                }
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.error || 'Invalid QR code'
+            });
+        }
+    })
+    .catch(error => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Network error. Please try again.'
+        });
+    });
+}
+
+// Check if session is still active
+function checkSessionStatus() {
+    const status = '{{ session.status }}';
+    const expiry = '{{ session.qr_code_expiry|date:"U" }}';
+    const now = Math.floor(Date.now() / 1000);
+    
+    if (status !== 'ongoing' || (expiry && now > expiry)) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Session Expired',
+            text: 'This attendance session has expired.',
+            confirmButtonText: 'Go Back'
+        }).then(() => {
+            window.location.href = '{% url "attendance:student_dashboard" %}';
+        });
+    }
+}
+
+// Auto-start scanner on page load
+document.addEventListener('DOMContentLoaded', function() {
+    checkSessionStatus();
+    startScanner();
+});
+
+// Clean up on page unload
+window.addEventListener('beforeunload', function() {
+    stopScanner();
+});
+</script>
+{% endblock %}

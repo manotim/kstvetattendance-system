@@ -362,11 +362,47 @@
                     </a>
                 </li>
                 
-                <li>
-                    <a href="{% url 'attendance:qr_attendance' %}?scan=true">
-                        <i class="fas fa-qrcode"></i>
-                        <span>Scan QR Code</span>
-                    </a>
+                <li class="nav-item dropdown">
+    <a class="nav-link dropdown-toggle" href="#" id="qrDropdown" role="button" data-bs-toggle="dropdown">
+        <i class="fas fa-qrcode"></i> QR Attendance
+        {% if active_sessions_count > 0 %}
+            <span class="badge bg-danger">{{ active_sessions_count }}</span>
+        {% endif %}
+    </a>
+    <div class="dropdown-menu">
+        {% if active_session %}
+            <a class="dropdown-item" href="{% url 'attendance:qr_attendance' session_id=active_session.id %}?scan=true">
+                                <i class="fas fa-camera"></i> Scan QR (Current)
+                                <small class="text-muted d-block">{{ active_session.class_session.course.name }}</small>
+                            </a>
+                            <div class="dropdown-divider"></div>
+                        {% endif %}
+                        
+                        {% if recent_sessions %}
+                            <h6 class="dropdown-header">Other Active Sessions</h6>
+                            {% for session in recent_sessions %}
+                                {% if session.id != active_session.id %}
+                                    <a class="dropdown-item" href="{% url 'attendance:qr_attendance' session_id=session.id %}?scan=true">
+                                        <i class="fas fa-qrcode"></i> {{ session.class_session.course.code }}
+                                        <small class="text-muted d-block">{{ session.session_date|date:"M d, Y" }} at {{ session.start_time|time:"H:i" }}</small>
+                                    </a>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                        
+                        {% if not active_session and not recent_sessions %}
+                            <span class="dropdown-item text-muted">
+                                <i class="fas fa-info-circle"></i> No active sessions
+                            </span>
+                        {% endif %}
+                        
+                        {% if request.user.user_type == 'instructor' %}
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="{% url 'attendance:create_session' %}">
+                                <i class="fas fa-plus"></i> Create New Session
+                            </a>
+                        {% endif %}
+                    </div>
                 </li>
                 {% endif %}
 

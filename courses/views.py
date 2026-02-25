@@ -4,8 +4,10 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Count
+from django.utils import timezone
+from attendance.models import AttendanceRecord, AttendanceSession
 from django.http import JsonResponse
-
+from attendance.models import AttendanceRecord
 from .models import Course, Class
 from .forms import CourseForm, ClassForm, ClassEnrollmentForm
 from students.models import Enrollment, Student
@@ -283,46 +285,126 @@ def enroll_students(request, class_id):
 
 @login_required
 def instructor_classes(request):
-    """View classes taught by the instructor"""
+    """View for instructors to see their assigned classes"""
     if request.user.user_type != 'instructor':
-        messages.error(request, "This page is for instructors only.")
+        messages.error(request, "Access denied. Instructors only.")
         return redirect('dashboard')
     
-    classes = Class.objects.filter(instructor=request.user, is_active=True)
+    # Get classes taught by this instructor
+    classes = Class.objects.filter(
+        instructor=request.user,
+        is_active=True
+    ).select_related('course').prefetch_related('enrollments')
     
-    # Get current and upcoming classes
+    # Add additional data to each class
     from django.utils import timezone
     today = timezone.now().date()
     
-    current_classes = classes.filter(end_date__gte=today).order_by('start_date')
-    past_classes = classes.filter(end_date__lt=today).order_by('-end_date')
+    for class_obj in classes:
+        # Count students
+        class_obj.student_count = class_obj.enrollments.filter(is_active=True).count()
+        
+        # Check if there's a session today
+        class_obj.today_session = class_obj.attendance_sessions.filter(
+            session_date=today
+        ).exists()
+        
+        # Get total sessions
+        class_obj.total_sessions = class_obj.attendance_sessions.count()
+        
+        # Get next session
+        next_session = class_obj.attendance_sessions.filter(
+            session_date__gte=today
+        ).order_by('session_date', 'start_time').first()
+        class_obj.next_session = next_session
+        
+        # Calculate attendance rate (optional)
+        if class_obj.total_sessions > 0:
+            total_records = AttendanceRecord.objects.filter(
+                session__class_session=class_obj
+            ).count()
+            present_records = AttendanceRecord.objects.filter(
+                session__class_session=class_obj,
+                status='present'
+            ).count()
+            class_obj.attendance_rate = round((present_records / total_records) * 100, 1) if total_records > 0 else 0
+        else:
+            class_obj.attendance_rate = 0
     
     context = {
-        'current_classes': current_classes,
-        'past_classes': past_classes,
+        'classes': classes,
     }
     return render(request, 'courses/instructor_classes.html', context)
 
+
 @login_required
 def student_classes(request):
-    """View classes enrolled by the student"""
+    """View for students to see their enrolled classes"""
+    # Check if user is a student
     if request.user.user_type != 'student':
-        messages.error(request, "This page is for students only.")
         return redirect('dashboard')
     
     try:
         student = request.user.student
+        
+        # Get active enrollments
         enrollments = Enrollment.objects.filter(
             student=student,
             is_active=True
-        ).select_related('class_enrolled', 'class_enrolled__course', 'class_enrolled__instructor')
+        ).select_related('class_enrolled', 'course', 'class_enrolled__instructor')
+        
+        # Calculate attendance for each enrollment
+        total_attendance = 0
+        for enrollment in enrollments:
+            # Get attendance records for this class
+            attendance_records = AttendanceRecord.objects.filter(
+                student=student,
+                session__class_session=enrollment.class_enrolled
+            )
+            
+            # Calculate counts
+            enrollment.present_count = attendance_records.filter(status='present').count()
+            enrollment.late_count = attendance_records.filter(status='late').count()
+            enrollment.absent_count = attendance_records.filter(status='absent').count()
+            
+            total_sessions = attendance_records.count()
+            if total_sessions > 0:
+                enrollment.attendance_percentage = round(
+                    (enrollment.present_count + enrollment.late_count) / total_sessions * 100, 1
+                )
+            else:
+                enrollment.attendance_percentage = 0
+            
+            # Get next session
+            enrollment.next_session = AttendanceSession.objects.filter(
+                class_session=enrollment.class_enrolled,
+                session_date__gte=timezone.now().date(),
+                status='scheduled'
+            ).order_by('session_date', 'start_time').first()
+            
+            total_attendance += enrollment.attendance_percentage
+        
+        # Calculate average attendance
+        avg_attendance = round(total_attendance / len(enrollments), 1) if enrollments else 0
+        
+        # Count upcoming sessions
+        upcoming_sessions = AttendanceSession.objects.filter(
+            class_session__in=[e.class_enrolled for e in enrollments],
+            session_date__gte=timezone.now().date(),
+            status='scheduled'
+        ).count()
         
         context = {
-            'student': student,
             'enrollments': enrollments,
+            'avg_attendance': avg_attendance,
+            'upcoming_sessions': upcoming_sessions,
         }
-        return render(request, 'courses/student_classes.html', context)
         
     except Student.DoesNotExist:
-        messages.error(request, "Student profile not found.")
-        return redirect('dashboard')
+        context = {
+            'enrollments': [],
+            'avg_attendance': 0,
+            'upcoming_sessions': 0,
+        }
+    
+    return render(request, 'courses/student_classes.html', context)

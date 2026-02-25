@@ -1,0 +1,294 @@
+<!-- templates/courses/student_classes.html - Updated with correct attendance URLs -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Classes - Student Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">My Classes</li>
+                </ol>
+            </nav>
+            
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h2 mb-0">My Classes</h1>
+                <span class="badge bg-primary">{{ enrollments|length }} Class{{ enrollments|length|pluralize }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50">Total Classes</h6>
+                            <h2 class="mb-0">{{ enrollments|length }}</h2>
+                        </div>
+                        <i class="fas fa-book fa-3x text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50">Average Attendance</h6>
+                            <h2 class="mb-0">{{ avg_attendance|default:"0" }}%</h2>
+                        </div>
+                        <i class="fas fa-chart-line fa-3x text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50">Upcoming Sessions</h6>
+                            <h2 class="mb-0">{{ upcoming_sessions|default:"0" }}</h2>
+                        </div>
+                        <i class="fas fa-calendar fa-3x text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Classes Grid -->
+    <div class="row">
+        {% for enrollment in enrollments %}
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <!-- Card Header -->
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">{{ enrollment.class_enrolled.name }}</h5>
+                    {% if enrollment.is_active %}
+                    <span class="badge bg-light text-dark">Active</span>
+                    {% endif %}
+                </div>
+                
+                <!-- Card Body -->
+                <div class="card-body">
+                    <!-- Course Info -->
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2">Course Information</h6>
+                        <p class="mb-1">
+                            <i class="fas fa-book me-2 text-primary"></i>
+                            <strong>{{ enrollment.course.name }}</strong>
+                        </p>
+                        <p class="mb-1">
+                            <i class="fas fa-code me-2 text-primary"></i>
+                            Code: {{ enrollment.course.code }}
+                        </p>
+                        <p class="mb-1">
+                            <i class="fas fa-calendar-alt me-2 text-primary"></i>
+                            Academic Year: {{ enrollment.class_enrolled.academic_year|default:"N/A" }}
+                        </p>
+                        <p class="mb-1">
+                            <i class="fas fa-user me-2 text-primary"></i>
+                            Instructor: {{ enrollment.class_enrolled.instructor.get_full_name|default:"Not Assigned" }}
+                        </p>
+                    </div>
+
+                    <!-- Enrollment Info -->
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2">Enrollment Details</h6>
+                        <p class="mb-1">
+                            <i class="fas fa-calendar-check me-2 text-success"></i>
+                            Enrolled: {{ enrollment.enrollment_date|date:"M d, Y" }}
+                        </p>
+                        {% if enrollment.completion_date %}
+                        <p class="mb-1">
+                            <i class="fas fa-flag-checkered me-2 text-warning"></i>
+                            Expected Completion: {{ enrollment.completion_date|date:"M d, Y" }}
+                        </p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Attendance Progress -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <h6 class="text-muted mb-0">Attendance</h6>
+                            <span class="badge {% if enrollment.attendance_percentage >= 75 %}bg-success{% elif enrollment.attendance_percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
+                                {{ enrollment.attendance_percentage|default:"0" }}%
+                            </span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar {% if enrollment.attendance_percentage >= 75 %}bg-success{% elif enrollment.attendance_percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ enrollment.attendance_percentage|default:'0' }}%"
+                                 aria-valuenow="{{ enrollment.attendance_percentage|default:'0' }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                            </div>
+                        </div>
+                        
+                        <!-- Attendance Breakdown -->
+                        <div class="row mt-2 text-center small">
+                            <div class="col-4">
+                                <span class="text-success">{{ enrollment.present_count|default:"0" }}</span>
+                                <span class="text-muted d-block">Present</span>
+                            </div>
+                            <div class="col-4">
+                                <span class="text-warning">{{ enrollment.late_count|default:"0" }}</span>
+                                <span class="text-muted d-block">Late</span>
+                            </div>
+                            <div class="col-4">
+                                <span class="text-danger">{{ enrollment.absent_count|default:"0" }}</span>
+                                <span class="text-muted d-block">Absent</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Next Session -->
+                    {% if enrollment.next_session %}
+                    <div class="alert alert-info py-2 mb-0">
+                        <small>
+                            <i class="fas fa-clock me-1"></i>
+                            Next Session: {{ enrollment.next_session.start_time|time:"g:i A" }} 
+                            ({{ enrollment.next_session.session_date|date:"M d" }})
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Card Footer - UPDATED WITH CORRECT ATTENDANCE URLS -->
+                <div class="card-footer bg-transparent">
+                    <div class="btn-group w-100">
+                        <!-- Class Details Link -->
+                        <a href="{% url 'courses:class_detail' enrollment.class_enrolled.id %}" 
+                           class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-info-circle me-1"></i>Details
+                        </a>
+                        
+                        <!-- Student History Link - Using the correct URL name from your patterns -->
+                        <a href="{% url 'attendance:student_history_by_id' request.user.student.id %}?class={{ enrollment.class_enrolled.id }}" 
+                           class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-history me-1"></i>My Attendance
+                        </a>
+                        
+                        <!-- Apply for Excuse Link -->
+                        <a href="{% url 'attendance:apply_excuse' %}?student={{ request.user.student.id }}&class={{ enrollment.class_enrolled.id }}" 
+                           class="btn btn-outline-warning btn-sm">
+                            <i class="fas fa-file-medical me-1"></i>Excuse
+                        </a>
+                    </div>
+                    
+                    <!-- Quick Stats Link to Full Report -->
+                    <div class="mt-2 text-center">
+                        <a href="{% url 'attendance:report' %}?student={{ request.user.student.id }}&class={{ enrollment.class_enrolled.id }}" 
+                           class="text-decoration-none small">
+                            <i class="fas fa-chart-bar me-1"></i>View Full Report
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <!-- No Classes Found -->
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-book-open fa-4x text-muted mb-3"></i>
+                    <h3 class="text-muted">No Classes Enrolled</h3>
+                    <p class="text-muted mb-4">You are not enrolled in any classes yet. Browse available courses and enroll to get started.</p>
+                    <a href="{% url 'courses:available_courses' %}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-search me-2"></i>Browse Available Courses
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Quick Access to All Attendance History -->
+    {% if enrollments %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <a href="{% url 'attendance:student_history' %}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-clock me-2"></i>All Attendance History
+                            </a>
+                        </div>
+                        <div class="col-md-4">
+                            <a href="{% url 'attendance:excuse_list' %}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-list me-2"></i>My Excuse Applications
+                            </a>
+                        </div>
+                        <div class="col-md-4">
+                            <a href="{% url 'attendance:report' %}" class="btn btn-outline-success w-100">
+                                <i class="fas fa-file-pdf me-2"></i>Generate Report
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+
+// Function to apply for excuse
+function applyExcuse(classId) {
+    window.location.href = `{% url 'attendance:apply_excuse' %}?student={{ request.user.student.id }}&class=${classId}`;
+}
+
+// Function to view attendance report
+function viewReport(classId) {
+    window.location.href = `{% url 'attendance:report' %}?student={{ request.user.student.id }}&class=${classId}`;
+}
+</script>
+
+<!-- Custom CSS -->
+<style>
+.card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+}
+.progress {
+    background-color: #e9ecef;
+    border-radius: 10px;
+}
+.progress-bar {
+    border-radius: 10px;
+    transition: width 0.5s ease;
+}
+.btn-group .btn {
+    transition: all 0.2s;
+}
+.btn-group .btn:hover {
+    transform: scale(1.05);
+}
+</style>
+{% endblock %}

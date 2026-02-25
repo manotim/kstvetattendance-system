@@ -100,6 +100,7 @@ class ExcuseApplicationForm(forms.ModelForm):
         
         return cleaned_data
 
+
 class AttendanceReportFilterForm(forms.Form):
     """Form for filtering attendance reports"""
     DATE_RANGE_CHOICES = [

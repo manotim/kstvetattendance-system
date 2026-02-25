@@ -584,26 +584,50 @@ def excuse_list(request):
     return render(request, 'attendance/excuse_list.html', context)
 
 @login_required
-@permission_required('attendance.change_excuseapplication', raise_exception=True)
 def review_excuse(request, excuse_id):
     """Review an excuse application"""
     excuse = get_object_or_404(ExcuseApplication, id=excuse_id)
+    
+    # Check if user is instructor of this class or admin
+    if request.user.user_type == 'instructor':
+        # Check if this instructor teaches the class
+        if excuse.class_session.instructor != request.user:
+            messages.error(request, "You can only review excuses for your own classes.")
+            return redirect('attendance:excuse_list')
+    elif request.user.user_type == 'admin' or request.user.is_superuser:
+        # Admin can review any excuse
+        pass
+    else:
+        messages.error(request, "You don't have permission to review excuses.")
+        return redirect('attendance:excuse_list')
     
     if request.method == 'POST':
         action = request.POST.get('action')
         review_notes = request.POST.get('review_notes', '')
         
         if action == 'approve':
-            excuse.approve(request.user, review_notes)
+            # Call the approve method
+            excuse.status = 'approved'
+            excuse.reviewed_by = request.user
+            excuse.reviewed_at = timezone.now()
+            excuse.review_notes = review_notes
+            excuse.save()
             messages.success(request, 'Excuse application approved.')
+            
         elif action == 'reject':
-            excuse.reject(request.user, review_notes)
+            # Call the reject method
+            excuse.status = 'rejected'
+            excuse.reviewed_by = request.user
+            excuse.reviewed_at = timezone.now()
+            excuse.review_notes = review_notes
+            excuse.save()
             messages.success(request, 'Excuse application rejected.')
         
         return redirect('attendance:excuse_list')
     
     context = {'excuse': excuse}
     return render(request, 'attendance/review_excuse.html', context)
+
 
 @require_POST
 @login_required

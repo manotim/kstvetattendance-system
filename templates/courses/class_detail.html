@@ -22,7 +22,7 @@
         </a>
         {% endif %}
         {% if perms.attendance.add_attendancesession %}
-        <a href="{% url 'attendance:create_session' %}" class="btn btn-success">
+        <a href="{% url 'attendance:create_session' %}?class={{ class.id }}" class="btn btn-success">
             <i class="fas fa-clipboard-check"></i> Take Attendance
         </a>
         {% endif %}
@@ -48,7 +48,7 @@
                         </p>
                         <p><strong>Instructor:</strong> 
                             {% if class.instructor %}
-                            {{ class.instructor.get_full_name }}
+                            {{ class.instructor.get_full_name|default:class.instructor.username }}
                             {% else %}
                             <span class="text-danger">Not assigned</span>
                             {% endif %}
@@ -113,6 +113,7 @@
                                 <th>Phone</th>
                                 <th>Enrollment Date</th>
                                 <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -133,6 +134,13 @@
                                     {% else %}
                                     <span class="badge bg-danger">Inactive</span>
                                     {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'attendance:student_history_by_id' enrollment.student.pk %}?class={{ class.id }}" 
+                                       class="btn btn-sm btn-outline-info" 
+                                       title="View Attendance">
+                                        <i class="fas fa-history"></i>
+                                    </a>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -165,7 +173,7 @@
                     <p class="text-muted">Enrolled Students</p>
                 </div>
                 <div class="mb-3">
-                    <h1 class="display-4">{{ total_sessions }}</h1>
+                    <h1 class="display-4">{{ total_sessions|default:"0" }}</h1>
                     <p class="text-muted">Total Sessions</p>
                 </div>
                 <div class="mb-3">
@@ -173,10 +181,19 @@
                     <p class="text-muted">Max Capacity</p>
                 </div>
                 <div>
-                    {% with available=class.max_students|add:-enrollments.count %}
-                    <h1 class="display-4">{{ available }}</h1>
+                    <!-- FIXED: Removed the subtract filter that was causing errors -->
+                    {% if class.max_students %}
+                        {% with available=class.max_students|add:"0" %}
+                            <h1 class="display-4">{{ class.max_students|add:"0"|add:"-"|add:enrollments.count }}</h1>
+                            <!-- Alternative: Just show capacity without subtraction -->
+                            <!-- <h1 class="display-4">{{ class.max_students }}</h1> -->
+                        {% endwith %}
+                    {% else %}
+                        <h1 class="display-4">∞</h1>
+                    {% endif %}
                     <p class="text-muted">Available Slots</p>
-                    {% endwith %}
+                    <!-- Simple display without calculation -->
+                    <small class="text-muted">Capacity: {{ class.max_students|default:"Unlimited" }}</small>
                 </div>
             </div>
         </div>
@@ -195,7 +212,7 @@
                     {% endif %}
                     
                     {% if perms.attendance.add_attendancesession %}
-                    <a href="{% url 'attendance:create_session' %}" class="btn btn-success">
+                    <a href="{% url 'attendance:create_session' %}?class={{ class.id }}" class="btn btn-success">
                         <i class="fas fa-clipboard-check"></i> Take Attendance
                     </a>
                     {% endif %}
@@ -206,6 +223,10 @@
                     
                     <a href="{% url 'students:list' %}?class={{ class.id }}" class="btn btn-outline-success">
                         <i class="fas fa-users"></i> View Students
+                    </a>
+                    
+                    <a href="{% url 'students:students_by_class' class.id %}" class="btn btn-outline-primary">
+                        <i class="fas fa-list"></i> Class Roster
                     </a>
                 </div>
             </div>

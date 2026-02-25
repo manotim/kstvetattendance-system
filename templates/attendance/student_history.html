@@ -1,0 +1,471 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Attendance History - TVET Attendance System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .history-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+    }
+    
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .filter-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .attendance-timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    
+    .timeline-item {
+        position: relative;
+        padding-bottom: 25px;
+    }
+    
+    .timeline-item:before {
+        content: '';
+        position: absolute;
+        left: -30px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e9ecef;
+    }
+    
+    .timeline-item:last-child:before {
+        display: none;
+    }
+    
+    .timeline-dot {
+        position: absolute;
+        left: -36px;
+        top: 0;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #667eea;
+        border: 2px solid white;
+        box-shadow: 0 0 0 2px #667eea;
+    }
+    
+    .timeline-dot.present { background: #28a745; box-shadow: 0 0 0 2px #28a745; }
+    .timeline-dot.absent { background: #dc3545; box-shadow: 0 0 0 2px #dc3545; }
+    .timeline-dot.late { background: #ffc107; box-shadow: 0 0 0 2px #ffc107; }
+    
+    .status-badge {
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .status-present { background: #d4edda; color: #155724; }
+    .status-absent { background: #f8d7da; color: #721c24; }
+    .status-late { background: #fff3cd; color: #856404; }
+    
+    .month-divider {
+        position: relative;
+        text-align: center;
+        margin: 30px 0 20px;
+    }
+    
+    .month-divider:before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: #dee2e6;
+        z-index: 1;
+    }
+    
+    .month-divider span {
+        background: white;
+        padding: 0 20px;
+        position: relative;
+        z-index: 2;
+        color: #667eea;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="history-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-2">
+                    <i class="fas fa-history me-2"></i>
+                    Attendance History
+                </h2>
+                <p class="mb-0">
+                    {{ student.user.get_full_name }} ({{ student.admission_number }})
+                </p>
+            </div>
+            <div>
+                <a href="{% url 'attendance:student_dashboard' %}" class="btn btn-outline-light">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+                </a>
+                <a href="{% url 'attendance:export_report' %}?student={{ student.id }}" class="btn btn-light ms-2">
+                    <i class="fas fa-download me-1"></i> Export
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Summary -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card d-flex align-items-center">
+                <div class="stat-icon bg-success bg-opacity-10 text-success me-3">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div>
+                    <h3 class="mb-0">{{ present_count }}</h3>
+                    <small class="text-muted">Present</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card d-flex align-items-center">
+                <div class="stat-icon bg-warning bg-opacity-10 text-warning me-3">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div>
+                    <h3 class="mb-0">{{ late_count }}</h3>
+                    <small class="text-muted">Late</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card d-flex align-items-center">
+                <div class="stat-icon bg-danger bg-opacity-10 text-danger me-3">
+                    <i class="fas fa-times-circle"></i>
+                </div>
+                <div>
+                    <h3 class="mb-0">{{ absent_count }}</h3>
+                    <small class="text-muted">Absent</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card d-flex align-items-center">
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary me-3">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div>
+                    <h3 class="mb-0">{{ attendance_rate }}%</h3>
+                    <small class="text-muted">Attendance Rate</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Card -->
+    <div class="filter-card">
+        <div class="row">
+            <div class="col-md-4">
+                <label class="form-label">Filter by Date Range</label>
+                <select class="form-select" id="dateRange">
+                    <option value="all">All Time</option>
+                    <option value="this_month">This Month</option>
+                    <option value="last_month">Last Month</option>
+                    <option value="this_semester">This Semester</option>
+                    <option value="custom">Custom Range</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">From</label>
+                <input type="date" class="form-control" id="startDate" disabled>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">To</label>
+                <input type="date" class="form-control" id="endDate" disabled>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button class="btn btn-primary w-100" onclick="applyFilter()">
+                    <i class="fas fa-filter me-1"></i> Apply
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Timeline -->
+    <div class="card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-clock me-2 text-primary"></i>
+                Attendance Timeline
+            </h5>
+            <div class="d-flex gap-3">
+                <span class="badge bg-success">Present</span>
+                <span class="badge bg-warning">Late</span>
+                <span class="badge bg-danger">Absent</span>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if page_obj %}
+                <!-- Summary Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6>Total Sessions</h6>
+                                <h3>{{ total_sessions }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6>This Week</h6>
+                                <h3>{{ weekly_count|default:0 }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6>This Month</h6>
+                                <h3>{{ monthly_count|default:0 }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6>Consecutive Present</h6>
+                                <h3>{{ consecutive_present|default:0 }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timeline View -->
+                <div class="attendance-timeline">
+                    {% regroup page_obj by session.session_date|date:"F Y" as month_list %}
+                    
+                    {% for month in month_list %}
+                    <div class="month-divider">
+                        <span>{{ month.grouper }}</span>
+                    </div>
+                    
+                    {% for record in month.list %}
+                    <div class="timeline-item">
+                        <div class="timeline-dot {{ record.status }}"></div>
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <strong>{{ record.session.session_date|date:"l, d M Y" }}</strong>
+                                        <br>
+                                        <small class="text-muted">
+                                            {{ record.session.start_time|time:"H:i" }} - {{ record.session.end_time|time:"H:i" }}
+                                        </small>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <h6 class="mb-1">{{ record.session.class_session.course.code }}</h6>
+                                        <small class="text-muted">{{ record.session.class_session.name }}</small>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <span class="status-badge status-{{ record.status }}">
+                                            {{ record.get_status_display }}
+                                        </span>
+                                        {% if record.is_excused %}
+                                        <span class="badge bg-info ms-1">Excused</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-2">
+                                        {% if record.check_in_time %}
+                                        <small>
+                                            <i class="fas fa-sign-in-alt text-success"></i>
+                                            {{ record.check_in_time|time:"H:i" }}
+                                        </small>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button class="btn btn-sm btn-outline-primary" 
+                                                onclick="viewDetails('{{ record.id }}')">
+                                            Details
+                                        </button>
+                                    </div>
+                                </div>
+                                {% if record.remarks %}
+                                <div class="mt-2 p-2 bg-light rounded">
+                                    <small>
+                                        <i class="fas fa-comment text-muted me-1"></i>
+                                        {{ record.remarks }}
+                                    </small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                <nav aria-label="Page navigation" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">No Attendance Records Found</h5>
+                <p class="text-muted">You don't have any attendance records yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Details Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Attendance Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detailsContent">
+                Loading...
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function applyFilter() {
+    const range = document.getElementById('dateRange').value;
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    
+    let url = window.location.pathname + '?';
+    
+    if (range === 'custom' && startDate && endDate) {
+        url += `start_date=${startDate}&end_date=${endDate}`;
+    } else if (range !== 'all' && range !== 'custom') {
+        url += `range=${range}`;
+    }
+    
+    window.location.href = url;
+}
+
+function viewDetails(recordId) {
+    fetch(`/attendance/record/${recordId}/details/`)
+        .then(response => response.json())
+        .then(data => {
+            let html = `
+                <div class="text-center mb-3">
+                    <span class="status-badge status-${data.status}">${data.status_display}</span>
+                </div>
+                <table class="table">
+                    <tr>
+                        <th>Date:</th>
+                        <td>${data.date}</td>
+                    </tr>
+                    <tr>
+                        <th>Time:</th>
+                        <td>${data.start_time} - ${data.end_time}</td>
+                    </tr>
+                    <tr>
+                        <th>Check In:</th>
+                        <td>${data.check_in_time || 'Not checked in'}</td>
+                    </tr>
+                    <tr>
+                        <th>Check Out:</th>
+                        <td>${data.check_out_time || 'Not checked out'}</td>
+                    </tr>
+                    <tr>
+                        <th>Instructor:</th>
+                        <td>${data.instructor}</td>
+                    </tr>
+                    <tr>
+                        <th>Topic:</th>
+                        <td>${data.topic}</td>
+                    </tr>
+                    <tr>
+                        <th>Venue:</th>
+                        <td>${data.venue}</td>
+                    </tr>
+                    <tr>
+                        <th>Remarks:</th>
+                        <td>${data.remarks || 'None'}</td>
+                    </tr>
+                </table>
+            `;
+            document.getElementById('detailsContent').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('detailsModal')).show();
+        });
+}
+
+document.getElementById('dateRange').addEventListener('change', function() {
+    const isCustom = this.value === 'custom';
+    document.getElementById('startDate').disabled = !isCustom;
+    document.getElementById('endDate').disabled = !isCustom;
+});
+</script>
+{% endblock %}

@@ -10,6 +10,7 @@
     </div>
 </div>
 
+<!-- Statistics Cards -->
 <div class="row">
     <div class="col-md-3 mb-4">
         <div class="card text-white bg-primary">
@@ -68,6 +69,173 @@
     </div>
 </div>
 
+<!-- Active Attendance Sessions Section -->
+{% if active_session or recent_sessions %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-primary">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-play-circle"></i> 
+                    Active Attendance Sessions
+                    {% if active_sessions_count > 0 %}
+                        <span class="badge bg-light text-primary ms-2">{{ active_sessions_count }} Active</span>
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Current/First Active Session -->
+                    {% if active_session %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card border-success h-100">
+                            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-bolt"></i> Current Session
+                                </h6>
+                                <span class="badge bg-light text-success">Ongoing</span>
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title">{{ active_session.class_session.course.name }}</h5>
+                                <p class="mb-2">
+                                    <strong>Course Code:</strong> {{ active_session.class_session.course.code }}<br>
+                                    <strong>Class:</strong> {{ active_session.class_session.class_code }}<br>
+                                    <strong>Instructor:</strong> {{ active_session.instructor.get_full_name|default:active_session.instructor.username }}
+                                </p>
+                                <div class="row mb-3">
+                                    <div class="col-6">
+                                        <div class="border rounded p-2 text-center">
+                                            <small class="text-muted d-block">Date</small>
+                                            <strong>{{ active_session.session_date|date:"M d, Y" }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="border rounded p-2 text-center">
+                                            <small class="text-muted d-block">Time</small>
+                                            <strong>{{ active_session.start_time|time:"H:i" }} - {{ active_session.end_time|time:"H:i" }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Attendance Statistics -->
+                                <div class="row mb-3">
+                                    <div class="col-4">
+                                        <div class="text-center">
+                                            <span class="badge bg-success rounded-pill p-2">Present</span>
+                                            <h5 class="mt-2">{{ active_session.total_present }}</h5>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="text-center">
+                                            <span class="badge bg-danger rounded-pill p-2">Absent</span>
+                                            <h5 class="mt-2">{{ active_session.total_absent }}</h5>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="text-center">
+                                            <span class="badge bg-warning rounded-pill p-2">Late</span>
+                                            <h5 class="mt-2">{{ active_session.total_late }}</h5>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Action Buttons -->
+                                <div class="d-grid gap-2">
+                                    <a href="{% url 'attendance:qr_attendance' session_id=active_session.id %}?scan=true" 
+                                       class="btn btn-success">
+                                        <i class="fas fa-qrcode"></i> Scan QR Attendance
+                                    </a>
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'attendance:mark_attendance' session_id=active_session.id %}" 
+                                           class="btn btn-primary">
+                                            <i class="fas fa-pen"></i> Mark Attendance
+                                        </a>
+                                        <a href="{% url 'attendance:view_qr' session_id=active_session.id %}" 
+                                           class="btn btn-info">
+                                            <i class="fas fa-eye"></i> View QR Code
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Other Active Sessions -->
+                    {% if recent_sessions %}
+                    <div class="{% if active_session %}col-md-6{% else %}col-12{% endif %}">
+                        <div class="card border-info">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-list"></i> 
+                                    {% if active_session %}Other Active Sessions{% else %}Active Sessions{% endif %}
+                                </h6>
+                            </div>
+                            <div class="list-group list-group-flush">
+                                {% for session in recent_sessions %}
+                                    {% if session.id != active_session.id %}
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-1">{{ session.class_session.course.name }}</h6>
+                                                <small class="text-muted d-block">
+                                                    <i class="fas fa-calendar-alt"></i> {{ session.session_date|date:"M d, Y" }}
+                                                    <i class="fas fa-clock ms-2"></i> {{ session.start_time|time:"H:i" }}
+                                                </small>
+                                                <small class="text-muted d-block">
+                                                    <i class="fas fa-chalkboard-teacher"></i> {{ session.class_session.class_code }}
+                                                </small>
+                                                <div class="mt-1">
+                                                    <span class="badge bg-success">Present: {{ session.total_present }}</span>
+                                                    <span class="badge bg-danger">Absent: {{ session.total_absent }}</span>
+                                                </div>
+                                            </div>
+                                            <div class="btn-group-vertical">
+                                                <a href="{% url 'attendance:qr_attendance' session_id=session.id %}?scan=true" 
+                                                   class="btn btn-sm btn-outline-success mb-1"
+                                                   title="Scan QR">
+                                                    <i class="fas fa-qrcode"></i>
+                                                </a>
+                                                <a href="{% url 'attendance:mark_attendance' session_id=session.id %}" 
+                                                   class="btn btn-sm btn-outline-primary"
+                                                   title="Mark Attendance">
+                                                    <i class="fas fa-pen"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<!-- No Active Sessions Message -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-body text-center py-4">
+                <i class="fas fa-info-circle fa-3x text-warning mb-3"></i>
+                <h5>No Active Attendance Sessions</h5>
+                <p class="text-muted mb-3">There are no ongoing attendance sessions at the moment.</p>
+                {% if request.user.user_type == 'instructor' or request.user.is_staff %}
+                    <a href="{% url 'attendance:create_session' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Create New Session
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- System Information Card -->
 <div class="row">
     <div class="col-12">
         <div class="card">
@@ -87,9 +255,11 @@
                 </ol>
                 
                 <h6>Developer:</h6>
-                <p><strong>Franciscah Mwende Mutia</strong><br>
-                ADM Number: 2025CS162301<br>
-                Course: CS 7403</p>
+                <p>
+                    <strong>Franciscah Mwende Mutia</strong><br>
+                    ADM Number: 2025CS162301<br>
+                    Course: CS 7403
+                </p>
             </div>
         </div>
     </div>

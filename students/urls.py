@@ -18,4 +18,5 @@ urlpatterns = [
     
     # Student dashboard
     path('dashboard/', views.student_dashboard, name='dashboard'),
+    path('class/<int:class_id>/', views.students_by_class, name='students_by_class'),
 ]

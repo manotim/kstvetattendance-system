@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}Excuse Applications - TVET Attendance System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .status-badge {
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .status-pending { background: #fff3cd; color: #856404; }
+    .status-approved { background: #d4edda; color: #155724; }
+    .status-rejected { background: #f8d7da; color: #721c24; }
+    
+    .excuse-card {
+        transition: all 0.3s;
+        border-left: 4px solid;
+        margin-bottom: 15px;
+    }
+    
+    .excuse-card.pending { border-left-color: #ffc107; }
+    .excuse-card.approved { border-left-color: #28a745; }
+    .excuse-card.rejected { border-left-color: #dc3545; }
+    
+    .excuse-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fas fa-file-alt me-2 text-primary"></i>
+            Excuse Applications
+        </h2>
+        {% if user.user_type == 'student' %}
+        <a href="{% url 'attendance:apply_excuse' %}" class="btn btn-primary">
+            <i class="fas fa-plus-circle me-1"></i> New Application
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Filter Tabs -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link {% if not request.GET.status %}active{% endif %}" href="?">All</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if request.GET.status == 'pending' %}active{% endif %}" href="?status=pending">Pending</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if request.GET.status == 'approved' %}active{% endif %}" href="?status=approved">Approved</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if request.GET.status == 'rejected' %}active{% endif %}" href="?status=rejected">Rejected</a>
+        </li>
+    </ul>
+
+    <!-- Excuse List -->
+    {% if excuses %}
+        {% for excuse in excuses %}
+        <div class="card excuse-card {{ excuse.status }}">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h5 class="mb-1">
+                                    {% if user.user_type != 'student' %}
+                                    {{ excuse.student.user.get_full_name }} - 
+                                    {% endif %}
+                                    {{ excuse.get_excuse_type_display }}
+                                </h5>
+                                <p class="mb-2">{{ excuse.reason|truncatechars:100 }}</p>
+                                <p class="mb-1 small text-muted">
+                                    <i class="fas fa-calendar me-1"></i>
+                                    {{ excuse.start_date|date:"d/m/Y" }} - {{ excuse.end_date|date:"d/m/Y" }}
+                                </p>
+                                {% if excuse.session %}
+                                <p class="mb-0 small text-muted">
+                                    <i class="fas fa-clock me-1"></i>
+                                    Session: {{ excuse.session.class_session.course.code }} 
+                                    ({{ excuse.session.session_date|date:"d/m/Y" }})
+                                </p>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <span class="status-badge status-{{ excuse.status }}">
+                                    {{ excuse.get_status_display }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex flex-column align-items-end">
+                            <p class="small text-muted mb-2">
+                                Applied: {{ excuse.applied_at|date:"d/m/Y H:i" }}
+                            </p>
+                            {% if excuse.document %}
+                            <a href="{{ excuse.document.url }}" class="btn btn-sm btn-outline-info mb-2" target="_blank">
+                                <i class="fas fa-file me-1"></i> View Document
+                            </a>
+                            {% endif %}
+                            
+                            {% if user.user_type != 'student' and excuse.status == 'pending' %}
+                            <a href="{% url 'attendance:review_excuse' excuse.id %}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-check-circle me-1"></i> Review
+                            </a>
+                            {% endif %}
+                            
+                            {% if excuse.review_notes %}
+                            <div class="small text-muted mt-2">
+                                <i class="fas fa-comment me-1"></i>
+                                {{ excuse.review_notes|truncatechars:30 }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-file-excel fa-4x text-muted mb-3"></i>
+            <h5 class="text-muted">No Excuse Applications Found</h5>
+            {% if user.user_type == 'student' %}
+            <p class="text-muted">You haven't submitted any excuse applications yet.</p>
+            <a href="{% url 'attendance:apply_excuse' %}" class="btn btn-primary mt-3">
+                <i class="fas fa-plus-circle me-1"></i> Submit First Application
+            </a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

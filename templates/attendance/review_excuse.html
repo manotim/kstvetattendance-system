@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+
+{% block title %}Review Excuse Application - TVET Attendance System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .review-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .student-info {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+    }
+    
+    .detail-card {
+        background: white;
+        border-radius: 10px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .document-preview {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 40px;
+        text-align: center;
+        border: 2px dashed #dee2e6;
+    }
+    
+    .status-badge {
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    
+    .status-pending { background: #fff3cd; color: #856404; }
+    .status-approved { background: #d4edda; color: #155724; }
+    .status-rejected { background: #f8d7da; color: #721c24; }
+    
+    .action-card {
+        background: white;
+        border-radius: 10px;
+        padding: 25px;
+        border-left: 4px solid;
+    }
+    
+    .action-card.approve { border-left-color: #28a745; }
+    .action-card.reject { border-left-color: #dc3545; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="review-container">
+    <!-- Header -->
+    <div class="student-info">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h2 class="mb-2">Review Excuse Application</h2>
+                <p class="mb-0">
+                    <i class="fas fa-user-graduate me-2"></i>
+                    {{ excuse.student.user.get_full_name }} ({{ excuse.student.admission_number }})
+                </p>
+            </div>
+            <span class="status-badge status-{{ excuse.status }}">
+                {{ excuse.get_status_display }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Application Details -->
+    <div class="detail-card">
+        <h5 class="mb-3">
+            <i class="fas fa-info-circle text-primary me-2"></i>
+            Application Details
+        </h5>
+        <table class="table">
+            <tr>
+                <th style="width: 150px;">Excuse Type:</th>
+                <td>
+                    <span class="badge bg-info">{{ excuse.get_excuse_type_display }}</span>
+                </td>
+            </tr>
+            <tr>
+                <th>Date Range:</th>
+                <td>
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    {{ excuse.start_date|date:"F j, Y" }} - {{ excuse.end_date|date:"F j, Y" }}
+                </td>
+            </tr>
+            {% if excuse.session %}
+            <tr>
+                <th>Related Session:</th>
+                <td>
+                    {{ excuse.session.class_session.course.code }} - 
+                    {{ excuse.session.class_session.name }}<br>
+                    <small class="text-muted">
+                        {{ excuse.session.session_date|date:"F j, Y" }} 
+                        at {{ excuse.session.start_time|time:"H:i" }}
+                    </small>
+                </td>
+            </tr>
+            {% endif %}
+            <tr>
+                <th>Applied On:</th>
+                <td>{{ excuse.applied_at|date:"F j, Y H:i" }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Reason -->
+    <div class="detail-card">
+        <h5 class="mb-3">
+            <i class="fas fa-comment text-primary me-2"></i>
+            Reason for Excuse
+        </h5>
+        <div class="bg-light p-3 rounded">
+            {{ excuse.reason|linebreaks }}
+        </div>
+    </div>
+
+    <!-- Supporting Document -->
+    <div class="detail-card">
+        <h5 class="mb-3">
+            <i class="fas fa-paperclip text-primary me-2"></i>
+            Supporting Document
+        </h5>
+        {% if excuse.document %}
+        <div class="document-preview">
+            <i class="fas fa-file-pdf fa-4x text-danger mb-3"></i>
+            <h6>{{ excuse.document.name|cut:"excuses/" }}</h6>
+            <a href="{{ excuse.document.url }}" class="btn btn-primary mt-3" target="_blank">
+                <i class="fas fa-eye me-1"></i> View Document
+            </a>
+            <a href="{{ excuse.document.url }}" download class="btn btn-outline-secondary mt-3 ms-2">
+                <i class="fas fa-download me-1"></i> Download
+            </a>
+        </div>
+        {% else %}
+        <p class="text-muted text-center py-4">
+            <i class="fas fa-times-circle me-2"></i>
+            No document uploaded
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- Review Form -->
+    {% if excuse.status == 'pending' %}
+    <div class="row">
+        <div class="col-md-6">
+            <div class="action-card approve">
+                <h5 class="mb-3 text-success">
+                    <i class="fas fa-check-circle me-2"></i>
+                    Approve Application
+                </h5>
+                <form method="post" action="?action=approve">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="approve">
+                    <div class="mb-3">
+                        <label class="form-label">Review Notes (Optional)</label>
+                        <textarea name="review_notes" class="form-control" rows="3" 
+                                  placeholder="Add any notes or comments..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="fas fa-check-circle me-1"></i> Approve Excuse
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="action-card reject">
+                <h5 class="mb-3 text-danger">
+                    <i class="fas fa-times-circle me-2"></i>
+                    Reject Application
+                </h5>
+                <form method="post" action="?action=reject" onsubmit="return confirmReject()">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="reject">
+                    <div class="mb-3">
+                        <label class="form-label">Reason for Rejection <span class="text-danger">*</span></label>
+                        <textarea name="review_notes" class="form-control" rows="3" required
+                                  placeholder="Please provide reason for rejection..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-danger w-100">
+                        <i class="fas fa-times-circle me-1"></i> Reject Excuse
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Review Result -->
+    <div class="detail-card">
+        <h5 class="mb-3">
+            <i class="fas fa-clipboard-check text-primary me-2"></i>
+            Review Result
+        </h5>
+        <div class="alert alert-{% if excuse.status == 'approved' %}success{% else %}danger{% endif %}">
+            <strong>
+                <i class="fas fa-{% if excuse.status == 'approved' %}check{% else %}times{% endif %}-circle me-2"></i>
+                {{ excuse.get_status_display|upper }}
+            </strong>
+            <p class="mt-2 mb-0">{{ excuse.review_notes|default:"No review notes provided." }}</p>
+            <hr>
+            <small>
+                Reviewed by: {{ excuse.reviewed_by.get_full_name|default:excuse.reviewed_by.username }}<br>
+                on {{ excuse.reviewed_at|date:"F j, Y H:i" }}
+            </small>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{% url 'attendance:excuse_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Excuse List
+        </a>
+    </div>
+</div>
+
+<script>
+function confirmReject() {
+    return confirm('Are you sure you want to reject this excuse application? This action cannot be undone.');
+}
+</script>
+{% endblock %}

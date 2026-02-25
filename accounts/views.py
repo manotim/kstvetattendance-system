@@ -4,9 +4,40 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.contrib import messages
 from .forms import CustomUserCreationForm
+from attendance.models import AttendanceSession
 
 def dashboard_view(request):
-    return render(request, 'accounts/dashboard.html')
+    # Get active sessions based on user type
+    if request.user.is_authenticated:
+        if request.user.user_type == 'instructor':
+            # Show sessions for this instructor
+            sessions = AttendanceSession.objects.filter(
+                instructor=request.user,
+                status='ongoing'  # Only active sessions
+            ).order_by('-session_date', '-start_time')[:5]  # Last 5 sessions
+            
+        elif request.user.user_type == 'student':
+            # Show sessions for student's class
+            try:
+                student = request.user.student
+                sessions = AttendanceSession.objects.filter(
+                    class_session=student.current_class,
+                    status='ongoing'
+                ).order_by('-session_date', '-start_time')[:5]
+            except:
+                sessions = []
+        else:
+            # Admin/staff - show all active sessions
+            sessions = AttendanceSession.objects.filter(
+                status='ongoing'
+            ).order_by('-session_date', '-start_time')[:5]
+    else:
+        sessions = []
+    
+    context = {
+        'sessions': sessions
+    }
+    return render(request, 'accounts/dashboard.html', context)
 
 def register_view(request):
     if request.method == 'POST':

@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %}My Classes - Instructor Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fas fa-chalkboard-teacher me-2 text-primary"></i>
+            My Classes
+        </h2>
+        <div>
+            <a href="{% url 'attendance:dashboard' %}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    {% if classes %}
+        <div class="row">
+            {% for class in classes %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">{{ class.course.code }}</h5>
+                        <span class="badge bg-light text-dark">{{ class.student_count|default:0 }} Students</span>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="card-title">{{ class.course.name }}</h6>
+                        <p class="card-text">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar me-1"></i> {{ class.academic_year }} - Semester {{ class.semester }}<br>
+                                <i class="fas fa-clock me-1"></i> {{ class.schedule|default:"Schedule not set" }}<br>
+                                <i class="fas fa-map-marker-alt me-1"></i> {{ class.room|default:"Room not assigned" }}
+                            </small>
+                        </p>
+                        
+                        <!-- Quick Stats -->
+                        <div class="row text-center mb-3">
+                            <div class="col-4">
+                                <div class="small text-muted">Today's Session</div>
+                                <strong>{{ class.today_session|yesno:"Yes,No" }}</strong>
+                            </div>
+                            <div class="col-4">
+                                <div class="small text-muted">Attendance Rate</div>
+                                <strong>{{ class.attendance_rate|default:"0" }}%</strong>
+                            </div>
+                            <div class="col-4">
+                                <div class="small text-muted">Total Sessions</div>
+                                <strong>{{ class.total_sessions|default:"0" }}</strong>
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'attendance:dashboard' %}?class_id={{ class.id }}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-clipboard-check me-1"></i> Manage Attendance
+                            </a>
+                            <div class="btn-group">
+                                <!-- Fix 1: Check if students:class_list exists, otherwise use alternative -->
+                                {% url 'students:class_list' as class_list_url %}
+                                {% if class_list_url %}
+                                <a href="{% url 'students:class_list' class.id %}" class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-users me-1"></i> View Students
+                                </a>
+                                {% else %}
+                                <!-- Alternative: Use a direct URL if students app has different pattern -->
+                                <a href="/students/class/{{ class.id }}/" class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-users me-1"></i> View Students
+                                </a>
+                                {% endif %}
+                                
+                                <!-- Fix 2: Check if attendance:report exists -->
+                                {% url 'attendance:report' as report_url %}
+                                {% if report_url %}
+                                <a href="{% url 'attendance:report' %}?class_session={{ class.id }}" class="btn btn-outline-success btn-sm">
+                                    <i class="fas fa-chart-bar me-1"></i> Reports
+                                </a>
+                                {% else %}
+                                <a href="/attendance/report/?class_session={{ class.id }}" class="btn btn-outline-success btn-sm">
+                                    <i class="fas fa-chart-bar me-1"></i> Reports
+                                </a>
+                                {% endif %}
+                            </div>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="showSchedule('{{ class.id }}')">
+                                <i class="fas fa-calendar-alt me-1"></i> View Schedule
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-white">
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>
+                            Next Session: {{ class.next_session|default:"Not scheduled" }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-chalkboard-teacher fa-4x text-muted mb-3"></i>
+            <h4 class="text-muted">No Classes Assigned</h4>
+            <p class="text-muted">You haven't been assigned any classes yet.</p>
+            <p class="text-muted">Please contact the administrator if you believe this is an error.</p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Schedule Modal -->
+<div class="modal fade" id="scheduleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Class Schedule</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="scheduleContent">
+                Loading...
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showSchedule(classId) {
+    // You can implement AJAX to load schedule details
+    // For now, just show a placeholder
+    document.getElementById('scheduleContent').innerHTML = `
+        <div class="text-center">
+            <i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i>
+            <p>Loading schedule...</p>
+        </div>
+    `;
+    
+    // Show modal
+    new bootstrap.Modal(document.getElementById('scheduleModal')).show();
+    
+    // Here you would normally fetch schedule data via AJAX
+    setTimeout(() => {
+        document.getElementById('scheduleContent').innerHTML = `
+            <div class="list-group">
+                <div class="list-group-item">
+                    <h6 class="mb-1">Weekly Schedule</h6>
+                    <p class="mb-1">Monday: 10:00 AM - 12:00 PM</p>
+                    <p class="mb-1">Wednesday: 10:00 AM - 12:00 PM</p>
+                    <p class="mb-0">Friday: 10:00 AM - 12:00 PM</p>
+                </div>
+                <div class="list-group-item">
+                    <h6 class="mb-1">Upcoming Sessions</h6>
+                    <p class="mb-1">Feb 26, 2026: Chapter 5 - Data Structures</p>
+                    <p class="mb-1">Feb 28, 2026: Lab Session</p>
+                    <p class="mb-0">Mar 2, 2026: Review Session</p>
+                </div>
+            </div>
+        `;
+    }, 1000);
+}
+</script>
+{% endblock %}
