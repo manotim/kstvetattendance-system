@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+
+{% block title %}Pending Approvals{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2>Pending Account Approvals</h2>
+            <p class="text-muted">Review and approve user accounts</p>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5>Total Pending</h5>
+                    <h2>{{ stats.total_pending }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5>Instructors</h5>
+                    <h2>{{ stats.instructors }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5>Admins</h5>
+                    <h2>{{ stats.admins }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-secondary text-white">
+                <div class="card-body">
+                    <h5>Other</h5>
+                    <h2>{{ stats.hod|add:stats.registrar }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row">
+                <div class="col-md-4">
+                    <input type="text" name="q" class="form-control" placeholder="Search users..." value="{{ query }}">
+                </div>
+                <div class="col-md-3">
+                    <select name="user_type" class="form-control">
+                        <option value="">All Types</option>
+                        {% for value, label in user_type_choices %}
+                            {% if value != 'student' %}
+                            <option value="{{ value }}" {% if user_type == value %}selected{% endif %}>{{ label }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                </div>
+                <div class="col-md-3 text-end">
+                    <button type="button" class="btn btn-success" id="bulkApproveBtn">
+                        <i class="fas fa-check-double"></i> Bulk Approve
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="card">
+        <div class="card-body">
+            <form method="post" action="{% url 'accounts:bulk_approve' %}" id="bulkApproveForm">
+                {% csrf_token %}
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th width="30">
+                                <input type="checkbox" id="selectAll">
+                            </th>
+                            <th>Username</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>User Type</th>
+                            <th>Requested</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pending_user in page_obj %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" name="user_ids" value="{{ pending_user.id }}" class="user-checkbox">
+                            </td>
+                            <td>{{ pending_user.username }}</td>
+                            <td>{{ pending_user.get_full_name|default:"—" }}</td>
+                            <td>{{ pending_user.email }}</td>
+                            <td>
+                                <span class="badge bg-info">{{ pending_user.get_user_type_display }}</span>
+                            </td>
+                            <td>{{ pending_user.created_at|timesince }} ago</td>
+                            <td>
+                                <a href="{% url 'accounts:approve_user' pending_user.id %}" class="btn btn-sm btn-primary">
+                                    Review
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">
+                                <p class="text-muted">No pending approvals</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </form>
+
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <nav>
+                <ul class="pagination">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if user_type %}&user_type={{ user_type }}{% endif %}">
+                            Previous
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% else %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}{% if user_type %}&user_type={{ user_type }}{% endif %}">
+                                {{ num }}
+                            </a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if user_type %}&user_type={{ user_type }}{% endif %}">
+                            Next
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('selectAll').addEventListener('change', function() {
+    var checkboxes = document.getElementsByClassName('user-checkbox');
+    for (var i = 0; i < checkboxes.length; i++) {
+        checkboxes[i].checked = this.checked;
+    }
+});
+
+document.getElementById('bulkApproveBtn').addEventListener('click', function() {
+    var checked = document.querySelectorAll('.user-checkbox:checked').length;
+    if (checked === 0) {
+        alert('Please select at least one user to approve.');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to approve ${checked} user(s)?`)) {
+        document.getElementById('bulkApproveForm').submit();
+    }
+});
+</script>
+{% endblock %}

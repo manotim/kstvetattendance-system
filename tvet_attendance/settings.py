@@ -122,3 +122,8 @@ LOGIN_URL = 'login'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Login/Logout URLs
+
+# Email settings (for password reset - configure with your email provider)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

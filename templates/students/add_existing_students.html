@@ -1,0 +1,245 @@
+<!-- templates/students/add_existing_students.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Add Existing Students to {{ class_obj.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'students:list' %}">Students</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'students:students_by_class' class_obj.id %}">{{ class_obj.name }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Add Existing Students</li>
+                </ol>
+            </nav>
+            
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-2">Add Existing Students to {{ class_obj.name }}</h1>
+                    <p class="text-muted">
+                        <i class="fas fa-users me-2"></i>Select students to add to this class
+                    </p>
+                </div>
+                <div>
+                    <a href="{% url 'students:register' %}?class={{ class_obj.id }}" class="btn btn-success">
+                        <i class="fas fa-user-plus me-2"></i>Register New Student
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Available Students</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row mb-4">
+                <div class="col-md-10">
+                    <div class="input-group">
+                        <input type="text" 
+                               name="q" 
+                               class="form-control" 
+                               placeholder="Search by name, admission number, or national ID..."
+                               value="{{ query }}">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Search
+                        </button>
+                        {% if query %}
+                        <a href="{% url 'students:add_existing_to_class' class_obj.id %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Clear
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+
+            <form method="post" id="addStudentsForm">
+                {% csrf_token %}
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">
+                                    <input type="checkbox" id="selectAll" class="form-check-input">
+                                </th>
+                                <th>Admission No.</th>
+                                <th>Student Name</th>
+                                <th>Gender</th>
+                                <th>Course</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in page_obj %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" 
+                                           name="student_ids" 
+                                           value="{{ student.id }}" 
+                                           class="form-check-input student-checkbox">
+                                </td>
+                                <td><strong>{{ student.admission_number }}</strong></td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if student.profile_picture %}
+                                        <img src="{{ student.profile_picture.url }}" 
+                                             class="rounded-circle me-2" 
+                                             width="35" height="35">
+                                        {% else %}
+                                        <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center me-2" 
+                                             style="width: 35px; height: 35px;">
+                                            {{ student.user.first_name|first|upper }}{{ student.user.last_name|first|upper }}
+                                        </div>
+                                        {% endif %}
+                                        <div>
+                                            <a href="{% url 'students:detail' student.id %}" class="text-decoration-none">
+                                                {{ student.user.get_full_name }}
+                                            </a>
+                                            <br>
+                                            <small class="text-muted">{{ student.user.email }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ student.get_gender_display }}</td>
+                                <td>
+                                    {% if student.course %}
+                                    <span class="badge bg-info">{{ student.course.name }}</span>
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if student.status == 'active' %}
+                                    <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                    <span class="badge bg-warning">{{ student.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4">
+                                    <i class="fas fa-users-slash fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-muted">No available students found</h5>
+                                    <p class="text-muted">
+                                        {% if query %}
+                                            No students match your search criteria.
+                                        {% else %}
+                                            All active students are already enrolled in this class.
+                                        {% endif %}
+                                    </p>
+                                    <a href="{% url 'students:register' %}?class={{ class_obj.id }}" class="btn btn-primary">
+                                        <i class="fas fa-user-plus me-2"></i>Register New Student
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Selected Count and Actions -->
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <p class="text-muted">
+                            <span id="selectedCount">0</span> student(s) selected
+                        </p>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <a href="{% url 'students:students_by_class' class_obj.id %}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary" id="addButton" disabled>
+                            <i class="fas fa-user-plus me-2"></i>Add Selected to Class
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">
+                            Previous
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}">
+                            Next
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const studentCheckboxes = document.querySelectorAll('.student-checkbox');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const addButton = document.getElementById('addButton');
+
+    function updateSelectedCount() {
+        const checkedCount = document.querySelectorAll('.student-checkbox:checked').length;
+        selectedCountSpan.textContent = checkedCount;
+        addButton.disabled = checkedCount === 0;
+    }
+
+    // Select All functionality
+    selectAllCheckbox.addEventListener('change', function() {
+        studentCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateSelectedCount();
+    });
+
+    // Individual checkboxes
+    studentCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const allChecked = Array.from(studentCheckboxes).every(cb => cb.checked);
+            selectAllCheckbox.checked = allChecked;
+            selectAllCheckbox.indeterminate = !allChecked && Array.from(studentCheckboxes).some(cb => cb.checked);
+            updateSelectedCount();
+        });
+    });
+
+    // Form submission confirmation
+    document.getElementById('addStudentsForm').addEventListener('submit', function(e) {
+        const checkedCount = document.querySelectorAll('.student-checkbox:checked').length;
+        if (checkedCount > 0) {
+            if (!confirm(`Are you sure you want to add ${checkedCount} student(s) to {{ class_obj.name }}?`)) {
+                e.preventDefault();
+            }
+        }
+    });
+
+    updateSelectedCount();
+});
+</script>
+{% endblock %}

@@ -30,16 +30,33 @@
                         {% endif %}
                     </p>
                 </div>
-                <div class="btn-group">
+                <!-- Update the Add Student button section -->
+                 <div class="btn-group">
                     <button type="button" class="btn btn-outline-primary" onclick="exportToCSV()">
                         <i class="fas fa-download me-2"></i>Export CSV
                     </button>
                     <a href="/attendance/session/create/?class={{ class_obj.id }}" class="btn btn-success">
-                        <i class="fas fa-calendar-check me-2"></i>Take Attendance
+                        <i class="fas fa-calendar-check me-2"></i>Create Class Session
                     </a>
-                    <a href="{% url 'students:register' %}?class={{ class_obj.id }}" class="btn btn-primary">
-                        <i class="fas fa-user-plus me-2"></i>Add Student
-                    </a>
+                    
+                    <!-- Dropdown for adding students -->
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-plus me-2"></i>Add Student
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'students:add_existing_to_class' class_obj.id %}">
+                                    <i class="fas fa-user-check me-2"></i>Add Existing Student
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'students:register' %}?class={{ class_obj.id }}">
+                                    <i class="fas fa-user-plus me-2"></i>Register New Student
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>

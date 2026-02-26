@@ -9,6 +9,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Select2 CSS for better dropdowns -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
     
     <style>
         body {
@@ -182,6 +185,43 @@
             margin-top: 2rem;
             border-radius: 10px;
         }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Animation for badges */
+        .badge-pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -228,7 +268,7 @@
                     </a>
                 </li>
 
-                {% if user.user_type == 'admin' or user.user_type == 'registrar' or user.user_type == 'hod' %}
+                {% if user.user_type == 'admin' or user.user_type == 'registrar' or user.user_type == 'hod' or user.is_superuser %}
                 <!-- Admin/Registrar/HOD Menu -->
                 <li class="mt-3 px-3">
                     <small class="text-uppercase text-white-50 fw-bold">Administration</small>
@@ -241,18 +281,50 @@
                     </a>
                 </li>
                 
-                <li class="{% if 'courses' in request.path and not 'classes' in request.path %}active{% endif %}">
+                <li class="{% if 'courses' in request.path and not 'classes' in request.path and not 'instructor-assignments' in request.path %}active{% endif %}">
                     <a href="{% url 'courses:list' %}">
                         <i class="fas fa-book"></i>
                         <span>Course Management</span>
                     </a>
                 </li>
                 
-                <li class="{% if 'classes' in request.path %}active{% endif %}">
+                <li class="{% if 'classes' in request.path and not 'instructor-assignments' in request.path %}active{% endif %}">
                     <a href="{% url 'courses:class_list' %}">
                         <i class="fas fa-chalkboard"></i>
                         <span>Class Management</span>
                     </a>
+                </li>
+
+                <!-- NEW: Instructor Management Section -->
+                <li class="mt-2 px-3">
+                    <small class="text-uppercase text-white-50 fw-bold">Instructor Management</small>
+                </li>
+                
+                <li class="{% if 'instructor-assignments' in request.path %}active{% endif %}">
+                    <a href="{% url 'courses:manage_instructor_assignments' %}">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        <span>Instructor Assignments</span>
+                        <span class="badge bg-info" id="unassigned-count-badge">0</span>
+                    </a>
+                </li>
+
+                <li>
+                    <a href="{% url 'courses:class_list' %}?instructor__isnull=true">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>Unassigned Classes</span>
+                    </a>
+                </li>
+                
+                <li>
+                    <a href="#" data-bs-toggle="modal" data-bs-target="#quickAssignModal">
+                        <i class="fas fa-bolt"></i>
+                        <span>Quick Assign Instructor</span>
+                    </a>
+                </li>
+
+                <!-- Reports Section -->
+                <li class="mt-3 px-3">
+                    <small class="text-uppercase text-white-50 fw-bold">Reports & Analytics</small>
                 </li>
                 
                 <li>
@@ -361,49 +433,6 @@
                         <span>Apply for Excuse</span>
                     </a>
                 </li>
-                
-                <li class="nav-item dropdown">
-    <a class="nav-link dropdown-toggle" href="#" id="qrDropdown" role="button" data-bs-toggle="dropdown">
-        <i class="fas fa-qrcode"></i> QR Attendance
-        {% if active_sessions_count > 0 %}
-            <span class="badge bg-danger">{{ active_sessions_count }}</span>
-        {% endif %}
-    </a>
-    <div class="dropdown-menu">
-        {% if active_session %}
-            <a class="dropdown-item" href="{% url 'attendance:qr_attendance' session_id=active_session.id %}?scan=true">
-                                <i class="fas fa-camera"></i> Scan QR (Current)
-                                <small class="text-muted d-block">{{ active_session.class_session.course.name }}</small>
-                            </a>
-                            <div class="dropdown-divider"></div>
-                        {% endif %}
-                        
-                        {% if recent_sessions %}
-                            <h6 class="dropdown-header">Other Active Sessions</h6>
-                            {% for session in recent_sessions %}
-                                {% if session.id != active_session.id %}
-                                    <a class="dropdown-item" href="{% url 'attendance:qr_attendance' session_id=session.id %}?scan=true">
-                                        <i class="fas fa-qrcode"></i> {{ session.class_session.course.code }}
-                                        <small class="text-muted d-block">{{ session.session_date|date:"M d, Y" }} at {{ session.start_time|time:"H:i" }}</small>
-                                    </a>
-                                {% endif %}
-                            {% endfor %}
-                        {% endif %}
-                        
-                        {% if not active_session and not recent_sessions %}
-                            <span class="dropdown-item text-muted">
-                                <i class="fas fa-info-circle"></i> No active sessions
-                            </span>
-                        {% endif %}
-                        
-                        {% if request.user.user_type == 'instructor' %}
-                            <div class="dropdown-divider"></div>
-                            <a class="dropdown-item" href="{% url 'attendance:create_session' %}">
-                                <i class="fas fa-plus"></i> Create New Session
-                            </a>
-                        {% endif %}
-                    </div>
-                </li>
                 {% endif %}
 
                 <!-- Common Links for All Authenticated Users -->
@@ -459,41 +488,77 @@
                                     <i class="fas fa-bolt"></i> Quick Actions
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end">
-                                    {% if user.user_type == 'admin' or user.user_type == 'registrar' %}
+                                    {% if user.user_type == 'admin' or user.user_type == 'registrar' or user.is_superuser %}
                                         <li><a class="dropdown-item" href="{% url 'students:register' %}">
                                             <i class="fas fa-user-plus"></i> Register Student
                                         </a></li>
                                         <li><a class="dropdown-item" href="{% url 'courses:create' %}">
                                             <i class="fas fa-plus-circle"></i> New Course
                                         </a></li>
+                                        <li><a class="dropdown-item" href="{% url 'courses:class_create' %}">
+                                            <i class="fas fa-plus-circle"></i> New Class
+                                        </a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="{% url 'courses:manage_instructor_assignments' %}">
+                                            <i class="fas fa-chalkboard-teacher"></i> Manage Instructors
+                                        </a></li>
                                     {% endif %}
                                     {% if user.user_type == 'instructor' %}
                                         <li><a class="dropdown-item" href="{% url 'attendance:create_session' %}">
                                             <i class="fas fa-calendar-plus"></i> Start Attendance
                                         </a></li>
+                                        <li><a class="dropdown-item" href="{% url 'courses:instructor_classes' %}">
+                                            <i class="fas fa-chalkboard-teacher"></i> My Classes
+                                        </a></li>
                                     {% endif %}
+                                    <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item" href="{% url 'attendance:report' %}">
                                         <i class="fas fa-chart-bar"></i> Generate Report
                                     </a></li>
                                 </ul>
                             </div>
                             
-                            <!-- Notifications (Placeholder) -->
-                            <div class="dropdown">
+                            <!-- Notifications -->
+                            <div class="dropdown me-2">
                                 <button class="btn btn-outline-secondary position-relative" type="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-bell"></i>
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                        3
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notification-count">
+                                        0
                                     </span>
                                 </button>
-                                <div class="dropdown-menu dropdown-menu-end">
+                                <div class="dropdown-menu dropdown-menu-end" style="width: 300px;" id="notification-menu">
                                     <h6 class="dropdown-header">Notifications</h6>
-                                    <a class="dropdown-item" href="#">New excuse application</a>
-                                    <a class="dropdown-item" href="#">Attendance session ending soon</a>
-                                    <a class="dropdown-item" href="#">2 students marked absent</a>
+                                    <div class="px-3 py-2 text-center text-muted" id="notification-loading">
+                                        <i class="fas fa-spinner fa-spin me-2"></i>Loading...
+                                    </div>
+                                    <div id="notification-list" style="display: none;"></div>
                                     <div class="dropdown-divider"></div>
-                                    <a class="dropdown-item text-center" href="#">View all</a>
+                                    <a class="dropdown-item text-center" href="#" id="view-all-notifications">View all</a>
                                 </div>
+                            </div>
+
+                            <!-- User Menu -->
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-user-circle"></i> {{ user.get_short_name }}
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="{% url 'profile' %}">
+                                        <i class="fas fa-id-card"></i> My Profile
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="#">
+                                        <i class="fas fa-cog"></i> Settings
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form method="post" action="{% url 'logout' %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="dropdown-item text-danger">
+                                                <i class="fas fa-sign-out-alt"></i> Logout
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
                             </div>
                         {% else %}
                             <a href="{% url 'login' %}" class="btn btn-primary">
@@ -511,7 +576,7 @@
             {% if messages %}
                 {% for message in messages %}
                     <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
-                        <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% else %}info-circle{% endif %} me-2"></i>
+                        <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% elif message.tags == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
@@ -535,13 +600,80 @@
         </div>
     </div>
 
+    <!-- Quick Assign Modal -->
+    <div class="modal fade" id="quickAssignModal" tabindex="-1" aria-labelledby="quickAssignModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="quickAssignModalLabel">
+                        <i class="fas fa-bolt me-2"></i>Quick Assign Instructor
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="post" action="{% url 'courses:bulk_assign_instructors' %}" id="quickAssignForm">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="instructorSelect" class="form-label fw-bold">
+                                <i class="fas fa-chalkboard-teacher me-2"></i>Select Instructor
+                            </label>
+                            <select name="instructor" class="form-select select2" id="instructorSelect" required>
+                                <option value="">Choose instructor...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-chalkboard me-2"></i>Select Classes to Assign
+                            </label>
+                            <div class="border rounded p-3 bg-light" style="max-height: 300px; overflow-y: auto;" id="classesList">
+                                <div class="text-center text-muted py-4" id="loadingClasses">
+                                    <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                                    <p>Loading available classes...</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info d-flex align-items-center">
+                            <i class="fas fa-info-circle me-2 fa-lg"></i>
+                            <div>
+                                <strong id="selectedCount">0</strong> class(es) selected
+                                <span id="selectAllContainer" style="display: none;">
+                                    · <a href="#" id="selectAllClasses">Select All</a> · 
+                                    <a href="#" id="deselectAllClasses">Deselect All</a>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="quickAssignSubmit" disabled>
+                            <i class="fas fa-check-circle me-2"></i>Assign Instructor
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Select2 -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     
     <script>
         $(document).ready(function() {
+            // Initialize Select2
+            $('.select2').select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: 'Select an option'
+            });
+            
             // Toggle sidebar
             $('#sidebarCollapse').on('click', function() {
                 $('#sidebar').toggleClass('active');
@@ -572,6 +704,128 @@
             tooltipTriggerList.map(function(tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl);
             });
+            
+            // Load unassigned classes count
+            function loadUnassignedCount() {
+                $.get('/courses/api/unassigned-classes-count/', function(data) {
+                    $('#unassigned-count-badge').text(data.count).toggleClass('bg-info bg-danger', data.count > 0);
+                }).fail(function() {
+                    $('#unassigned-count-badge').text('?');
+                });
+            }
+            
+            // Load quick assign modal data
+            $('#quickAssignModal').on('show.bs.modal', function() {
+                // Load instructors
+                $.get('/courses/api/instructors/', function(data) {
+                    let select = $('#instructorSelect');
+                    select.empty().append('<option value="">Choose instructor...</option>');
+                    data.instructors.forEach(function(instructor) {
+                        select.append(`<option value="${instructor.id}">${instructor.name} (${instructor.email})</option>`);
+                    });
+                    select.trigger('change');
+                }).fail(function() {
+                    alert('Failed to load instructors');
+                });
+                
+                // Load unassigned classes
+                $.get('/courses/api/unassigned-classes/', function(data) {
+                    let container = $('#classesList');
+                    $('#loadingClasses').hide();
+                    
+                    if (data.classes.length === 0) {
+                        container.html('<div class="text-center text-muted py-4"><i class="fas fa-check-circle fa-2x mb-2 text-success"></i><p>No unassigned classes available</p></div>');
+                        $('#selectAllContainer').hide();
+                        return;
+                    }
+                    
+                    let html = '';
+                    data.classes.forEach(function(cls) {
+                        html += `
+                            <div class="form-check mb-2 p-2 border-bottom">
+                                <input class="form-check-input class-checkbox" type="checkbox" name="class_ids" value="${cls.id}" id="class${cls.id}">
+                                <label class="form-check-label" for="class${cls.id}">
+                                    <strong>${cls.class_code}</strong> - ${cls.name}<br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-book me-1"></i>${cls.course_name} | 
+                                        <i class="fas fa-calendar me-1"></i>${cls.academic_year} | 
+                                        <i class="fas fa-layer-group me-1"></i>Semester ${cls.semester}
+                                        ${cls.venue ? '| <i class="fas fa-map-marker-alt me-1"></i>' + cls.venue : ''}
+                                    </small>
+                                </label>
+                            </div>
+                        `;
+                    });
+                    container.html(html);
+                    $('#selectAllContainer').show();
+                    updateSelectedCount();
+                }).fail(function() {
+                    $('#classesList').html('<div class="text-center text-danger py-4"><i class="fas fa-exclamation-circle fa-2x mb-2"></i><p>Failed to load classes</p></div>');
+                });
+            });
+            
+            // Update selected count
+            function updateSelectedCount() {
+                let count = $('.class-checkbox:checked').length;
+                $('#selectedCount').text(count);
+                $('#quickAssignSubmit').prop('disabled', count === 0 || $('#instructorSelect').val() === '');
+            }
+            
+            $(document).on('change', '.class-checkbox', updateSelectedCount);
+            
+            $('#instructorSelect').on('change', function() {
+                updateSelectedCount();
+            });
+            
+            // Select/Deselect all classes
+            $('#selectAllClasses').on('click', function(e) {
+                e.preventDefault();
+                $('.class-checkbox').prop('checked', true);
+                updateSelectedCount();
+            });
+            
+            $('#deselectAllClasses').on('click', function(e) {
+                e.preventDefault();
+                $('.class-checkbox').prop('checked', false);
+                updateSelectedCount();
+            });
+            
+            // Load notifications (placeholder)
+            function loadNotifications() {
+                // This would be replaced with actual API call
+                setTimeout(function() {
+                    $('#notification-loading').hide();
+                    $('#notification-list').html(`
+                        <a class="dropdown-item" href="#">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-file-alt text-primary me-2"></i>
+                                <div>
+                                    <small><strong>New excuse application</strong></small>
+                                    <small class="text-muted d-block">5 minutes ago</small>
+                                </div>
+                            </div>
+                        </a>
+                        <a class="dropdown-item" href="#">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-clock text-warning me-2"></i>
+                                <div>
+                                    <small><strong>Attendance session ending soon</strong></small>
+                                    <small class="text-muted d-block">10 minutes ago</small>
+                                </div>
+                            </div>
+                        </a>
+                    `).show();
+                    $('#notification-count').text('2').show();
+                }, 1000);
+            }
+            
+            loadNotifications();
+            
+            // Initial load
+            loadUnassignedCount();
+            
+            // Refresh count every 30 seconds
+            setInterval(loadUnassignedCount, 30000);
         });
         
         // Function to handle sidebar responsive

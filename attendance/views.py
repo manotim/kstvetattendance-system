@@ -539,6 +539,7 @@ def student_attendance_history(request, student_id=None):
     
     return render(request, 'attendance/student_history.html', context)
 
+
 @login_required
 def apply_excuse(request):
     """Apply for an excuse"""

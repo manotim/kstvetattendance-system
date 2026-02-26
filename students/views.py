@@ -7,6 +7,7 @@ from django.db.models import Q
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from django.core.exceptions import PermissionDenied
 import csv
 from io import TextIOWrapper
 
@@ -17,8 +18,31 @@ from courses.models import Class
 from attendance.models import AttendanceSession, AttendanceRecord, AttendanceSummary
 from datetime import timedelta
 
+# Custom decorator for instructor access
+def instructor_required(view_func):
+    """
+    Decorator to allow access only to instructors and admins
+    """
+    from functools import wraps
+    
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        # Allow superusers, admins, and instructors
+        if request.user.is_superuser or request.user.user_type in ['admin', 'instructor']:
+            return view_func(request, *args, **kwargs)
+        
+        messages.error(request, "You don't have permission to access this page.")
+        raise PermissionDenied
+    
+    return _wrapped_view
+
+
 @login_required
+@instructor_required
 def student_list(request):
+    """
+    View for instructors to see all students
+    """
     query = request.GET.get('q', '')
     status = request.GET.get('status', '')
     course = request.GET.get('course', '')
@@ -54,8 +78,13 @@ def student_list(request):
     }
     return render(request, 'students/student_list.html', context)
 
+
 @login_required
+@instructor_required
 def student_detail(request, pk):
+    """
+    View for instructors to see student details
+    """
     student = get_object_or_404(Student.objects.select_related('user', 'course', 'current_class'), pk=pk)
     enrollments = student.enrollments.select_related('course', 'class_enrolled').all()
     academic_records = student.academic_records.all()
@@ -67,23 +96,48 @@ def student_detail(request, pk):
     }
     return render(request, 'students/student_detail.html', context)
 
+
 @login_required
-@permission_required('students.add_student', raise_exception=True)
+@instructor_required
 def student_register(request):
+    """
+    View for instructors to register new students
+    """
     if request.method == 'POST':
         form = StudentRegistrationForm(request.POST, request.FILES)
         if form.is_valid():
             user = form.save()
             messages.success(request, f'Student {user.get_full_name()} registered successfully!')
+            
+            # If class_id is provided in URL, redirect to class page
+            class_id = request.GET.get('class')
+            if class_id:
+                return redirect('students:students_by_class', class_id=class_id)
             return redirect('students:detail', pk=user.student.pk)
     else:
-        form = StudentRegistrationForm()
+        initial = {}
+        class_id = request.GET.get('class')
+        if class_id:
+            try:
+                class_obj = Class.objects.get(pk=class_id)
+                initial['course'] = class_obj.course
+            except Class.DoesNotExist:
+                pass
+        form = StudentRegistrationForm(initial=initial)
     
-    context = {'form': form}
+    context = {
+        'form': form,
+        'class_id': request.GET.get('class')
+    }
     return render(request, 'students/student_register.html', context)
 
+
 @login_required
+@instructor_required
 def student_update(request, pk):
+    """
+    View for instructors to update student information
+    """
     student = get_object_or_404(Student, pk=pk)
     
     if request.method == 'POST':
@@ -101,9 +155,13 @@ def student_update(request, pk):
     }
     return render(request, 'students/student_update.html', context)
 
+
 @login_required
-@permission_required('students.add_enrollment', raise_exception=True)
+@instructor_required
 def enroll_student(request, student_pk):
+    """
+    View for instructors to enroll students in classes
+    """
     student = get_object_or_404(Student, pk=student_pk)
     
     if request.method == 'POST':
@@ -123,9 +181,13 @@ def enroll_student(request, student_pk):
     }
     return render(request, 'students/enroll_student.html', context)
 
+
 @login_required
-@permission_required('students.add_student', raise_exception=True)
+@instructor_required
 def bulk_import_students(request):
+    """
+    View for instructors to bulk import students
+    """
     if request.method == 'POST':
         form = BulkStudentImportForm(request.POST, request.FILES)
         if form.is_valid():
@@ -185,8 +247,12 @@ def bulk_import_students(request):
     context = {'form': form}
     return render(request, 'students/bulk_import.html', context)
 
+
 @login_required
 def student_dashboard(request):
+    """
+    View for students to see their own dashboard
+    """
     if request.user.user_type != 'student':
         return redirect('dashboard')
     
@@ -205,10 +271,14 @@ def student_dashboard(request):
     }
     return render(request, 'students/student_dashboard.html', context)
 
+
 @require_POST
 @login_required
-@permission_required('students.change_student', raise_exception=True)
+@instructor_required
 def toggle_student_status(request, pk):
+    """
+    View for instructors to toggle student active status
+    """
     student = get_object_or_404(Student, pk=pk)
     
     if student.status == 'active':
@@ -231,13 +301,24 @@ def toggle_student_status(request, pk):
     messages.success(request, message)
     return redirect('students:detail', pk=pk)
 
+
 @login_required
+@instructor_required
 def students_by_class(request, class_id):
     """
-    View to display all students enrolled in a specific class
+    View for instructors to display all students enrolled in a specific class
     """
     # Get the class
     class_obj = get_object_or_404(Class, pk=class_id)
+    
+    # Optional: Check if instructor is assigned to this class
+    if request.user.user_type == 'instructor' and not request.user.is_superuser:
+        # Add logic here if you want to restrict instructors to only their classes
+        # For example, if Class has an instructor field:
+        # if class_obj.instructor != request.user:
+        #     messages.error(request, "You don't have permission to view this class.")
+        #     return redirect('students:list')
+        pass
     
     # Get filter parameters
     query = request.GET.get('q', '')
@@ -410,7 +491,7 @@ def students_by_class(request, class_id):
         
         if sessions_on_date.exists():
             total_present = sum(session.total_present for session in sessions_on_date)
-            total_students_on_date = total_students  # You might want to adjust this for historical data
+            total_students_on_date = total_students
             attendance_rate = round((total_present / total_students_on_date) * 100, 1) if total_students_on_date > 0 else 0
         else:
             attendance_rate = None
@@ -448,3 +529,72 @@ def students_by_class(request, class_id):
     }
     
     return render(request, 'students/students_by_class.html', context)
+
+@login_required
+@instructor_required
+def add_existing_students_to_class(request, class_id):
+    """
+    View for instructors to add existing students to a class
+    """
+    class_obj = get_object_or_404(Class, pk=class_id)
+    
+    if request.method == 'POST':
+        student_ids = request.POST.getlist('student_ids')
+        if student_ids:
+            students_added = 0
+            for student_id in student_ids:
+                student = get_object_or_404(Student, pk=student_id)
+                
+                # Check if already enrolled
+                enrollment, created = Enrollment.objects.get_or_create(
+                    student=student,
+                    class_enrolled=class_obj,
+                    defaults={
+                        'course': class_obj.course,
+                        'enrollment_date': timezone.now().date(),
+                        'is_active': True
+                    }
+                )
+                if created:
+                    students_added += 1
+            
+            messages.success(request, f'Successfully added {students_added} students to {class_obj.name}')
+        else:
+            messages.warning(request, 'No students selected')
+        
+        return redirect('students:students_by_class', class_id=class_id)
+    
+    # GET request - show available students
+    query = request.GET.get('q', '')
+    
+    # Get students not already enrolled in this class
+    enrolled_student_ids = Enrollment.objects.filter(
+        class_enrolled=class_obj,
+        is_active=True
+    ).values_list('student_id', flat=True)
+    
+    available_students = Student.objects.select_related('user').exclude(
+        id__in=enrolled_student_ids
+    ).filter(status='active')
+    
+    if query:
+        available_students = available_students.filter(
+            Q(user__first_name__icontains=query) |
+            Q(user__last_name__icontains=query) |
+            Q(admission_number__icontains=query) |
+            Q(national_id__icontains=query)
+        )
+    
+    # Pagination
+    paginator = Paginator(available_students.order_by('admission_number'), 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'class_obj': class_obj,
+        'students': page_obj,
+        'query': query,
+        'is_paginated': paginator.num_pages > 1,
+        'page_obj': page_obj,
+    }
+    return render(request, 'students/add_existing_students.html', context)

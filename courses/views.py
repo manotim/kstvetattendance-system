@@ -11,6 +11,7 @@ from attendance.models import AttendanceRecord
 from .models import Course, Class
 from .forms import CourseForm, ClassForm, ClassEnrollmentForm
 from students.models import Enrollment, Student
+from accounts.models import User
 
 @login_required
 def course_list(request):
@@ -408,3 +409,261 @@ def student_classes(request):
         }
     
     return render(request, 'courses/student_classes.html', context)
+
+# courses/views.py
+from django.contrib.admin.views.decorators import staff_member_required
+
+@login_required
+@staff_member_required  # Only admin/staff can access
+def manage_instructor_assignments(request):
+    """
+    Admin view to manage instructor assignments to classes
+    """
+    # Get filter parameters
+    instructor_id = request.GET.get('instructor')
+    course_id = request.GET.get('course')
+    academic_year = request.GET.get('academic_year')
+    
+    # Base queryset
+    classes = Class.objects.select_related('course', 'instructor').all()
+    
+    # Apply filters
+    if instructor_id:
+        classes = classes.filter(instructor_id=instructor_id)
+    if course_id:
+        classes = classes.filter(course_id=course_id)
+    if academic_year:
+        classes = classes.filter(academic_year=academic_year)
+    
+    # Get all instructors for filter dropdown
+    instructors = User.objects.filter(user_type='instructor', is_active=True)
+    courses = Course.objects.filter(is_active=True)
+    academic_years = Class.objects.values_list('academic_year', flat=True).distinct().order_by('-academic_year')
+    
+    # Unassigned classes
+    unassigned_classes = classes.filter(instructor__isnull=True)
+    
+    # Classes by instructor (only assigned ones)
+    instructor_classes = {}
+    for instructor in instructors:
+        assigned = classes.filter(instructor=instructor)
+        if assigned.exists():
+            instructor_classes[instructor] = assigned
+    
+    context = {
+        'instructors': instructors,
+        'courses': courses,
+        'academic_years': academic_years,
+        'instructor_classes': instructor_classes,
+        'unassigned_classes': unassigned_classes,
+        'total_classes': classes.count(),
+        'assigned_count': classes.filter(instructor__isnull=False).count(),
+        'unassigned_count': unassigned_classes.count(),
+    }
+    return render(request, 'courses/manage_instructor_assignments.html', context)
+
+@login_required
+@staff_member_required
+def bulk_assign_instructors(request):
+    """
+    Bulk assign instructors to multiple classes
+    """
+    if request.method == 'POST':
+        instructor_id = request.POST.get('instructor')
+        class_ids = request.POST.getlist('class_ids')
+        
+        if instructor_id and class_ids:
+            instructor = get_object_or_404(User, id=instructor_id, user_type='instructor')
+            updated = Class.objects.filter(id__in=class_ids).update(instructor=instructor)
+            messages.success(request, f'Successfully assigned {instructor.get_full_name()} to {updated} classes')
+        else:
+            messages.warning(request, 'Please select both an instructor and at least one class')
+        
+        return redirect('courses:manage_instructor_assignments')
+    
+    return redirect('courses:manage_instructor_assignments')
+
+
+@login_required
+@staff_member_required
+def assign_instructor_to_class(request, class_id):
+    """
+    Assign or change instructor for a specific class
+    """
+    class_obj = get_object_or_404(Class, id=class_id)
+    
+    if request.method == 'POST':
+        instructor_id = request.POST.get('instructor')
+        if instructor_id:
+            instructor = get_object_or_404(User, id=instructor_id, user_type='instructor')
+            class_obj.instructor = instructor
+            class_obj.save()
+            messages.success(request, f'Instructor {instructor.get_full_name()} assigned to {class_obj.class_code}')
+        else:
+            class_obj.instructor = None
+            class_obj.save()
+            messages.success(request, f'Instructor removed from {class_obj.class_code}')
+        
+        return redirect('courses:manage_instructor_assignments')
+    
+    # GET request - show assignment form (if accessed directly)
+    return redirect('courses:manage_instructor_assignments')
+
+
+# courses/views.py - Add these at the bottom of the file
+
+from django.http import JsonResponse
+from django.contrib.admin.views.decorators import staff_member_required
+from django.db.models import Q
+from accounts.models import User
+
+@login_required
+@staff_member_required
+def manage_instructor_assignments(request):
+    """
+    Admin view to manage instructor assignments to classes
+    """
+    # Get filter parameters
+    instructor_id = request.GET.get('instructor')
+    course_id = request.GET.get('course')
+    academic_year = request.GET.get('academic_year')
+    
+    # Base queryset
+    classes = Class.objects.select_related('course', 'instructor').all()
+    
+    # Apply filters
+    if instructor_id:
+        classes = classes.filter(instructor_id=instructor_id)
+    if course_id:
+        classes = classes.filter(course_id=course_id)
+    if academic_year:
+        classes = classes.filter(academic_year=academic_year)
+    
+    # Get all instructors for filter dropdown
+    instructors = User.objects.filter(user_type='instructor', is_active=True)
+    courses = Course.objects.filter(is_active=True)
+    academic_years = Class.objects.values_list('academic_year', flat=True).distinct().order_by('-academic_year')
+    
+    # Unassigned classes
+    unassigned_classes = classes.filter(instructor__isnull=True)
+    
+    # Classes by instructor (only assigned ones)
+    instructor_classes = {}
+    for instructor in instructors:
+        assigned = classes.filter(instructor=instructor)
+        if assigned.exists():
+            instructor_classes[instructor] = assigned
+    
+    context = {
+        'instructors': instructors,
+        'courses': courses,
+        'academic_years': academic_years,
+        'instructor_classes': instructor_classes,
+        'unassigned_classes': unassigned_classes,
+        'total_classes': classes.count(),
+        'assigned_count': classes.filter(instructor__isnull=False).count(),
+        'unassigned_count': unassigned_classes.count(),
+    }
+    return render(request, 'courses/manage_instructor_assignments.html', context)
+
+
+@login_required
+@staff_member_required
+def bulk_assign_instructors(request):
+    """
+    Bulk assign instructors to multiple classes
+    """
+    if request.method == 'POST':
+        instructor_id = request.POST.get('instructor')
+        class_ids = request.POST.getlist('class_ids')
+        
+        if instructor_id and class_ids:
+            instructor = get_object_or_404(User, id=instructor_id, user_type='instructor')
+            updated = Class.objects.filter(id__in=class_ids).update(instructor=instructor)
+            messages.success(request, f'Successfully assigned {instructor.get_full_name()} to {updated} classes')
+        else:
+            messages.warning(request, 'Please select both an instructor and at least one class')
+        
+        return redirect('courses:manage_instructor_assignments')
+    
+    return redirect('courses:manage_instructor_assignments')
+
+
+@login_required
+@staff_member_required
+def assign_instructor_to_class(request, class_id):
+    """
+    Assign or change instructor for a specific class
+    """
+    class_obj = get_object_or_404(Class, id=class_id)
+    
+    if request.method == 'POST':
+        instructor_id = request.POST.get('instructor')
+        if instructor_id:
+            instructor = get_object_or_404(User, id=instructor_id, user_type='instructor')
+            class_obj.instructor = instructor
+            class_obj.save()
+            messages.success(request, f'Instructor {instructor.get_full_name()} assigned to {class_obj.class_code}')
+        else:
+            class_obj.instructor = None
+            class_obj.save()
+            messages.success(request, f'Instructor removed from {class_obj.class_code}')
+        
+        return redirect('courses:manage_instructor_assignments')
+    
+    # GET request - show assignment form (if accessed directly)
+    return redirect('courses:manage_instructor_assignments')
+
+
+@login_required
+@staff_member_required
+def api_unassigned_classes_count(request):
+    """API endpoint to get count of unassigned classes"""
+    count = Class.objects.filter(
+        Q(instructor__isnull=True) | Q(instructor=''),
+        is_active=True
+    ).count()
+    return JsonResponse({'count': count})
+
+
+@login_required
+@staff_member_required
+def api_instructors_list(request):
+    """API endpoint to get list of instructors"""
+    instructors = User.objects.filter(
+        user_type='instructor',
+        is_active=True
+    ).order_by('first_name', 'last_name')
+    
+    data = {
+        'instructors': [{
+            'id': inst.id,
+            'name': inst.get_full_name() or inst.username,
+            'email': inst.email
+        } for inst in instructors]
+    }
+    return JsonResponse(data)
+
+
+@login_required
+@staff_member_required
+def api_unassigned_classes(request):
+    """API endpoint to get list of unassigned classes"""
+    classes = Class.objects.filter(
+        Q(instructor__isnull=True) | Q(instructor=''),
+        is_active=True
+    ).select_related('course').order_by('class_code')
+    
+    data = {
+        'classes': [{
+            'id': cls.id,
+            'class_code': cls.class_code,
+            'name': cls.name,
+            'course_name': cls.course.name,
+            'academic_year': cls.academic_year,
+            'semester': cls.semester,
+            'venue': cls.venue,
+            'max_students': cls.max_students
+        } for cls in classes]
+    }
+    return JsonResponse(data)

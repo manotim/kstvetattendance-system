@@ -1,0 +1,546 @@
+<!-- templates/students/student_dashboard.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Student Dashboard - TVET Attendance System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .welcome-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .profile-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+        transition: transform 0.3s;
+    }
+    
+    .profile-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    .profile-picture {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #667eea;
+        margin-bottom: 15px;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+        text-align: center;
+        transition: all 0.3s;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 15px;
+        font-size: 1.8rem;
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+        color: #333;
+    }
+    
+    .stat-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .class-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-left: 4px solid #667eea;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        transition: all 0.3s;
+    }
+    
+    .class-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    .progress {
+        height: 8px;
+        border-radius: 4px;
+        margin: 10px 0;
+    }
+    
+    .progress-bar {
+        border-radius: 4px;
+    }
+    
+    .attendance-badge {
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .attendance-excellent { background: #d4edda; color: #155724; }
+    .attendance-good { background: #cce5ff; color: #004085; }
+    .attendance-average { background: #fff3cd; color: #856404; }
+    .attendance-poor { background: #f8d7da; color: #721c24; }
+    
+    .quick-action-btn {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.3s;
+        color: #495057;
+        text-decoration: none;
+        display: block;
+    }
+    
+    .quick-action-btn:hover {
+        background: #667eea;
+        color: white;
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+    
+    .quick-action-btn i {
+        font-size: 2rem;
+        margin-bottom: 10px;
+        display: block;
+    }
+    
+    .record-item {
+        padding: 15px;
+        border-bottom: 1px solid #dee2e6;
+        transition: background 0.3s;
+    }
+    
+    .record-item:hover {
+        background: #f8f9fa;
+    }
+    
+    .record-item:last-child {
+        border-bottom: none;
+    }
+    
+    .status-present { color: #28a745; }
+    .status-absent { color: #dc3545; }
+    .status-late { color: #ffc107; }
+    .status-excused { color: #17a2b8; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Welcome Header -->
+<div class="welcome-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="h2 mb-2">
+                <i class="fas fa-user-graduate me-2"></i>
+                Welcome back, {{ student.user.get_full_name }}!
+            </h1>
+            <p class="mb-0 opacity-75">
+                <i class="fas fa-id-card me-2"></i>Admission No: {{ student.admission_number }}
+                {% if student.current_class %}
+                | <i class="fas fa-chalkboard ms-2 me-2"></i>Current Class: {{ student.current_class.name }}
+                {% endif %}
+            </p>
+        </div>
+        <div class="text-end">
+            <span class="badge bg-light text-dark p-2">
+                <i class="fas fa-calendar me-2"></i>{% now "l, F j, Y" %}
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Student Profile Summary -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="profile-card text-center">
+            {% if student.profile_picture %}
+                <img src="{{ student.profile_picture.url }}" alt="Profile" class="profile-picture">
+            {% else %}
+                <div class="profile-picture bg-primary text-white d-flex align-items-center justify-content-center mx-auto" style="font-size: 3rem;">
+                    {{ student.user.first_name|first|upper }}{{ student.user.last_name|first|upper }}
+                </div>
+            {% endif %}
+            <h4>{{ student.user.get_full_name }}</h4>
+            <p class="text-muted mb-2">
+                <i class="fas fa-envelope me-2"></i>{{ student.user.email }}<br>
+                <i class="fas fa-phone me-2"></i>{{ student.user.phone_number|default:"Not provided" }}
+            </p>
+            <div class="d-flex justify-content-center gap-2">
+                <span class="badge bg-primary p-2">
+                    <i class="fas fa-venus-mars me-1"></i>{{ student.get_gender_display }}
+                </span>
+                <span class="badge bg-info p-2">
+                    <i class="fas fa-birthday-cake me-1"></i>{{ student.date_of_birth|date:"M d, Y" }}
+                </span>
+            </div>
+            <hr class="my-3">
+            <div class="row text-start">
+                <div class="col-6">
+                    <small class="text-muted d-block">National ID</small>
+                    <strong>{{ student.national_id|default:"—" }}</strong>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted d-block">County</small>
+                    <strong>{{ student.county|default:"—" }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <!-- Statistics Cards -->
+        <div class="row">
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                        <i class="fas fa-book-open"></i>
+                    </div>
+                    <div class="stat-value">{{ enrollments.count }}</div>
+                    <div class="stat-label">Active Classes</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon bg-success bg-opacity-10 text-success">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-value" id="presentCount">0</div>
+                    <div class="stat-label">Present</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="stat-value" id="attendanceRate">0%</div>
+                    <div class="stat-label">Attendance Rate</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="row mt-3">
+            <div class="col-md-4">
+                <a href="{% url 'attendance:student_history' %}" class="quick-action-btn">
+                    <i class="fas fa-history"></i>
+                    <span>View History</span>
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="{% url 'attendance:apply_excuse' %}" class="quick-action-btn">
+                    <i class="fas fa-file-medical"></i>
+                    <span>Apply Excuse</span>
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="{% url 'profile' %}" class="quick-action-btn">
+                    <i class="fas fa-user-cog"></i>
+                    <span>Update Profile</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- My Classes Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-chalkboard me-2"></i>My Active Classes
+                </h5>
+                <span class="badge bg-light text-primary">{{ enrollments.count }} Classes</span>
+            </div>
+            <div class="card-body">
+                {% if enrollments %}
+                    <div class="row">
+                        {% for enrollment in enrollments %}
+                        <div class="col-md-6">
+                            <div class="class-card">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h5 class="mb-0">{{ enrollment.course.name }}</h5>
+                                    <span class="badge bg-info">{{ enrollment.course.code }}</span>
+                                </div>
+                                <p class="text-muted mb-2">
+                                    <i class="fas fa-chalkboard-teacher me-2"></i>{{ enrollment.class_enrolled.name }}<br>
+                                    <i class="fas fa-calendar me-2"></i>{{ enrollment.class_enrolled.academic_year }} | Semester {{ enrollment.class_enrolled.semester }}<br>
+                                    <i class="fas fa-map-marker-alt me-2"></i>{{ enrollment.class_enrolled.venue|default:"Venue TBD" }}
+                                </p>
+                                
+                                <!-- Attendance Progress for this class -->
+                                <div class="mt-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <small class="text-muted">Attendance Rate</small>
+                                        <small class="fw-bold" id="attendance-{{ enrollment.id }}">Loading...</small>
+                                    </div>
+                                    <div class="progress">
+                                        <div class="progress-bar" id="progress-{{ enrollment.id }}" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-3 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <small class="text-muted d-block">
+                                            <i class="fas fa-clock me-1"></i>
+                                            {{ enrollment.class_enrolled.meeting_days|default:"Days TBD" }}
+                                            {% if enrollment.class_enrolled.meeting_time %}
+                                                at {{ enrollment.class_enrolled.meeting_time }}
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                    <a href="{% url 'attendance:student_history' %}?class={{ enrollment.class_enrolled.id }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i>View
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-book-open fa-4x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Active Classes</h5>
+                        <p class="text-muted">You are not enrolled in any classes at the moment.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Attendance Records and Academic Progress -->
+<div class="row">
+    <!-- Recent Attendance -->
+    <div class="col-md-7 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock me-2"></i>Recent Attendance
+                </h5>
+                <a href="{% url 'attendance:student_history' %}" class="btn btn-sm btn-light">
+                    View All <i class="fas fa-arrow-right ms-1"></i>
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div id="recentAttendance">
+                    <div class="text-center py-4">
+                        <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+                        <p class="text-muted mt-2">Loading recent attendance...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Academic Records -->
+    <div class="col-md-5 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-graduation-cap me-2"></i>Academic Records
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if academic_records %}
+                    <div class="list-group">
+                        {% for record in academic_records %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ record.academic_year }}</h6>
+                                    <small class="text-muted">Semester {{ record.semester }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <strong>{{ record.gpa }}</strong><br>
+                                    <small class="text-muted">GPA</small>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <div class="d-flex justify-content-between">
+                                    <span>Status:</span>
+                                    <span class="badge bg-{% if record.status == 'passed' %}success{% elif record.status == 'failed' %}danger{% else %}warning{% endif %}">
+                                        {{ record.get_status_display }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-scroll fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No academic records found.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Emergency Contact Information -->
+<div class="row">
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Emergency Contact
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <strong>Name:</strong>
+                        <p>{{ student.emergency_contact_name|default:"Not provided" }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Phone:</strong>
+                        <p>{{ student.emergency_contact_phone|default:"Not provided" }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Relationship:</strong>
+                        <p>{{ student.emergency_contact_relationship|default:"Not provided" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Load attendance statistics
+    loadAttendanceStats();
+    
+    // Load recent attendance records
+    loadRecentAttendance();
+});
+
+function loadAttendanceStats() {
+    $.get('/attendance/api/student-stats/', function(data) {
+        $('#presentCount').text(data.present_count);
+        $('#attendanceRate').text(data.attendance_rate + '%');
+        
+        // Update individual class attendance
+        data.class_attendance.forEach(function(item) {
+            $(`#attendance-${item.enrollment_id}`).text(item.rate + '%');
+            $(`#progress-${item.enrollment_id}`).css('width', item.rate + '%');
+            
+            // Color code based on rate
+            if (item.rate >= 80) {
+                $(`#progress-${item.enrollment_id}`).addClass('bg-success');
+            } else if (item.rate >= 60) {
+                $(`#progress-${item.enrollment_id}`).addClass('bg-warning');
+            } else {
+                $(`#progress-${item.enrollment_id}`).addClass('bg-danger');
+            }
+        });
+    }).fail(function() {
+        $('#presentCount').text('0');
+        $('#attendanceRate').text('0%');
+    });
+}
+
+function loadRecentAttendance() {
+    $.get('/attendance/api/recent-attendance/', function(data) {
+        let html = '';
+        
+        if (data.records.length === 0) {
+            html = `
+                <div class="text-center py-4">
+                    <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No recent attendance records.</p>
+                </div>
+            `;
+        } else {
+            data.records.forEach(function(record) {
+                let statusClass = '';
+                let statusIcon = '';
+                
+                if (record.status === 'present') {
+                    statusClass = 'status-present';
+                    statusIcon = 'fa-check-circle';
+                } else if (record.status === 'late') {
+                    statusClass = 'status-late';
+                    statusIcon = 'fa-clock';
+                } else if (record.status === 'absent') {
+                    statusClass = 'status-absent';
+                    statusIcon = 'fa-times-circle';
+                } else {
+                    statusClass = 'status-excused';
+                    statusIcon = 'fa-file-medical';
+                }
+                
+                html += `
+                    <div class="record-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${record.course_name}</strong><br>
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar-alt me-1"></i>${record.date}
+                                    <i class="fas fa-clock ms-2 me-1"></i>${record.time}
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                <span class="${statusClass}">
+                                    <i class="fas ${statusIcon} me-1"></i>${record.status_display}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        $('#recentAttendance').html(html);
+    }).fail(function() {
+        $('#recentAttendance').html(`
+            <div class="text-center py-4">
+                <i class="fas fa-exclamation-circle fa-3x text-danger mb-3"></i>
+                <p class="text-muted">Failed to load attendance records.</p>
+            </div>
+        `);
+    });
+}
+</script>
+{% endblock %}

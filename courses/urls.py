@@ -23,4 +23,14 @@ urlpatterns = [
     # User-specific views
     path('instructor/classes/', views.instructor_classes, name='instructor_classes'),
     path('student/classes/', views.student_classes, name='student_classes'),
+    
+    # Instructor assignment management (admin only)
+    path('instructor-assignments/', views.manage_instructor_assignments, name='manage_instructor_assignments'),
+    path('bulk-assign-instructors/', views.bulk_assign_instructors, name='bulk_assign_instructors'),
+    path('class/<int:class_id>/assign-instructor/', views.assign_instructor_to_class, name='assign_instructor'),
+    
+    # API endpoints for instructor management (NEW)
+    path('api/unassigned-classes-count/', views.api_unassigned_classes_count, name='api_unassigned_count'),
+    path('api/instructors/', views.api_instructors_list, name='api_instructors'),
+    path('api/unassigned-classes/', views.api_unassigned_classes, name='api_unassigned_classes'),
 ]

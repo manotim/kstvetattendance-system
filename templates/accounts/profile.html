@@ -1,0 +1,743 @@
+<!-- templates/accounts/profile.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Profile - TVET Attendance System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .profile-card {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+    }
+    
+    .profile-picture-container {
+        position: relative;
+        width: 150px;
+        height: 150px;
+        margin: 0 auto 20px;
+    }
+    
+    .profile-picture {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #667eea;
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .profile-picture-placeholder {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        font-weight: bold;
+        margin: 0 auto 20px;
+        border: 4px solid white;
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .edit-profile-btn {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #667eea;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        transition: all 0.3s;
+    }
+    
+    .edit-profile-btn:hover {
+        transform: scale(1.1);
+        background: #5a67d8;
+        color: white;
+    }
+    
+    .info-label {
+        font-size: 0.85rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 5px;
+    }
+    
+    .info-value {
+        font-size: 1.1rem;
+        font-weight: 500;
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .info-value:last-child {
+        border-bottom: none;
+    }
+    
+    .badge-role {
+        background: rgba(255,255,255,0.2);
+        padding: 8px 20px;
+        border-radius: 30px;
+        font-size: 0.9rem;
+        display: inline-block;
+    }
+    
+    .stat-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.3s;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #667eea;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    
+    .activity-timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    
+    .timeline-item {
+        position: relative;
+        padding-bottom: 20px;
+    }
+    
+    .timeline-item:before {
+        content: '';
+        position: absolute;
+        left: -30px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e9ecef;
+    }
+    
+    .timeline-item:last-child:before {
+        display: none;
+    }
+    
+    .timeline-dot {
+        position: absolute;
+        left: -36px;
+        top: 0;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #667eea;
+        border: 2px solid white;
+        box-shadow: 0 0 0 2px #667eea;
+    }
+    
+    .timeline-dot.success { background: #28a745; box-shadow: 0 0 0 2px #28a745; }
+    .timeline-dot.warning { background: #ffc107; box-shadow: 0 0 0 2px #ffc107; }
+    .timeline-dot.danger { background: #dc3545; box-shadow: 0 0 0 2px #dc3545; }
+    .timeline-dot.info { background: #17a2b8; box-shadow: 0 0 0 2px #17a2b8; }
+    
+    .tab-custom {
+        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 20px;
+    }
+    
+    .tab-custom .nav-link {
+        color: #6c757d;
+        font-weight: 500;
+        border: none;
+        padding: 10px 20px;
+        margin-right: 10px;
+    }
+    
+    .tab-custom .nav-link:hover {
+        color: #667eea;
+        border: none;
+    }
+    
+    .tab-custom .nav-link.active {
+        color: #667eea;
+        background: none;
+        border-bottom: 2px solid #667eea;
+    }
+    
+    .security-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 15px;
+    }
+    
+    .security-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #e9ecef;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #667eea;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Profile Header -->
+<div class="profile-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h1 class="h2 mb-3">
+                <i class="fas fa-user-circle me-2"></i>My Profile
+            </h1>
+            <p class="mb-0 opacity-75">
+                <i class="fas fa-id-card me-2"></i>Manage your personal information and account settings
+            </p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <span class="badge-role">
+                <i class="fas fa-user-tag me-2"></i>{{ user.get_user_type_display|default:user.user_type|title }}
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Profile Content -->
+<div class="row">
+    <!-- Left Column - Profile Picture & Basic Info -->
+    <div class="col-md-4">
+        <div class="profile-card text-center">
+            <div class="profile-picture-container">
+                {% if user.profile_picture %}
+                    <img src="{{ user.profile_picture.url }}" alt="Profile" class="profile-picture">
+                {% else %}
+                    <div class="profile-picture-placeholder">
+                        {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+                    </div>
+                {% endif %}
+                <a href="#" class="edit-profile-btn" data-bs-toggle="modal" data-bs-target="#uploadPictureModal">
+                    <i class="fas fa-camera"></i>
+                </a>
+            </div>
+            
+            <h3 class="mb-1">{{ user.get_full_name }}</h3>
+            <p class="text-muted mb-3">@{{ user.username }}</p>
+            
+            <div class="d-flex justify-content-center gap-2 mb-4">
+                <span class="badge bg-primary p-2">
+                    <i class="fas fa-calendar me-1"></i>Joined {{ user.date_joined|date:"M Y" }}
+                </span>
+                <span class="badge bg-info p-2">
+                    <i class="fas fa-clock me-1"></i>Last login {{ user.last_login|timesince }} ago
+                </span>
+            </div>
+            
+            <div class="row g-2">
+                <div class="col-6">
+                    <div class="stat-card">
+                        <div class="stat-number" id="loginCount">0</div>
+                        <div class="stat-label">Logins</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="stat-card">
+                        <div class="stat-number" id="daysActive">0</div>
+                        <div class="stat-label">Days Active</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions Card -->
+        <div class="profile-card">
+            <h5 class="mb-3"><i class="fas fa-bolt me-2 text-primary"></i>Quick Actions</h5>
+            <div class="d-grid gap-2">
+                <a href="#" class="btn btn-outline-primary text-start" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                    <i class="fas fa-key me-2"></i>Change Password
+                </a>
+                <a href="#" class="btn btn-outline-success text-start" data-bs-toggle="modal" data-bs-target="#uploadPictureModal">
+                    <i class="fas fa-camera me-2"></i>Update Profile Picture
+                </a>
+                <a href="#" class="btn btn-outline-info text-start" onclick="alert('Notification settings coming soon!')">
+                    <i class="fas fa-bell me-2"></i>Notification Settings
+                </a>
+                {% if user.user_type == 'student' %}
+                <a href="{% url 'students:dashboard' %}" class="btn btn-outline-secondary text-start">
+                    <i class="fas fa-tachometer-alt me-2"></i>Go to Student Dashboard
+                </a>
+                {% elif user.user_type == 'instructor' %}
+                <a href="{% url 'attendance:dashboard' %}" class="btn btn-outline-secondary text-start">
+                    <i class="fas fa-tachometer-alt me-2"></i>Go to Instructor Dashboard
+                </a>
+                {% elif user.user_type == 'admin' or user.is_superuser %}
+                <a href="{% url 'admin:index' %}" class="btn btn-outline-secondary text-start">
+                    <i class="fas fa-cog me-2"></i>Go to Admin Panel
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Column - Detailed Information -->
+    <div class="col-md-8">
+        <!-- Tabs -->
+        <ul class="nav nav-tabs tab-custom" id="profileTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal" type="button">
+                    <i class="fas fa-user me-2"></i>Personal Information
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="account-tab" data-bs-toggle="tab" data-bs-target="#account" type="button">
+                    <i class="fas fa-cog me-2"></i>Account Settings
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button">
+                    <i class="fas fa-shield-alt me-2"></i>Security
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity" type="button">
+                    <i class="fas fa-history me-2"></i>Activity Log
+                </button>
+            </li>
+        </ul>
+        
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Personal Information Tab -->
+            <div class="tab-pane fade show active" id="personal">
+                <div class="profile-card">
+                    <h5 class="mb-4"><i class="fas fa-id-card me-2 text-primary"></i>Basic Information</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-label">First Name</div>
+                            <div class="info-value">{{ user.first_name|default:"—" }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-label">Last Name</div>
+                            <div class="info-value">{{ user.last_name|default:"—" }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-label">Email Address</div>
+                            <div class="info-value">
+                                {{ user.email|default:"—" }}
+                                {% if user.email %}
+                                    <span class="badge bg-success ms-2">Verified</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-label">Phone Number</div>
+                            <div class="info-value">{{ user.phone_number|default:"—" }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-label">User Type</div>
+                            <div class="info-value">
+                                <span class="badge bg-primary">{{ user.get_user_type_display|default:user.user_type|title }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-label">Account Status</div>
+                            <div class="info-value">
+                                {% if user.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inactive</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if user.user_type == 'student' and student %}
+                    <hr class="my-4">
+                    <h5 class="mb-4"><i class="fas fa-graduation-cap me-2 text-primary"></i>Student Information</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-label">Admission Number</div>
+                            <div class="info-value">{{ student.admission_number }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-label">National ID</div>
+                            <div class="info-value">{{ student.national_id|default:"—" }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-label">Date of Birth</div>
+                            <div class="info-value">{{ student.date_of_birth|date:"F j, Y"|default:"—" }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-label">Gender</div>
+                            <div class="info-value">{{ student.get_gender_display }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-label">County</div>
+                            <div class="info-value">{{ student.county|default:"—" }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-label">Sub County</div>
+                            <div class="info-value">{{ student.sub_county|default:"—" }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="info-label">Address</div>
+                            <div class="info-value">{{ student.address|default:"—" }}</div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    <h5 class="mb-4"><i class="fas fa-phone-alt me-2 text-primary"></i>Emergency Contact</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="info-label">Contact Name</div>
+                            <div class="info-value">{{ student.emergency_contact_name|default:"—" }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="info-label">Phone Number</div>
+                            <div class="info-value">{{ student.emergency_contact_phone|default:"—" }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="info-label">Relationship</div>
+                            <div class="info-value">{{ student.emergency_contact_relationship|default:"—" }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if user.user_type == 'instructor' and instructor %}
+                    <hr class="my-4">
+                    <h5 class="mb-4"><i class="fas fa-chalkboard-teacher me-2 text-primary"></i>Instructor Information</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-label">Employee ID</div>
+                            <div class="info-value">{{ instructor.employee_id|default:"—" }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-label">Department</div>
+                            <div class="info-value">{{ instructor.department|default:"—" }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-label">Qualification</div>
+                            <div class="info-value">{{ instructor.qualification|default:"—" }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-label">Specialization</div>
+                            <div class="info-value">{{ instructor.specialization|default:"—" }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Account Settings Tab -->
+            <div class="tab-pane fade" id="account">
+                <div class="profile-card">
+                    <h5 class="mb-4"><i class="fas fa-sliders-h me-2 text-primary"></i>Preferences</h5>
+                    
+                    <form method="post" action="#" onsubmit="alert('Preferences saved! This is a demo.'); return false;">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Language</label>
+                            <select class="form-select">
+                                <option value="en" selected>English</option>
+                                <option value="sw">Swahili</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Date Format</label>
+                            <select class="form-select">
+                                <option value="mdy">MM/DD/YYYY</option>
+                                <option value="dmy" selected>DD/MM/YYYY</option>
+                                <option value="ymd">YYYY-MM-DD</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Time Zone</label>
+                            <select class="form-select">
+                                <option value="Africa/Nairobi" selected>East Africa Time (GMT+3)</option>
+                            </select>
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <h5 class="mb-4"><i class="fas fa-bell me-2 text-primary"></i>Notifications</h5>
+                        
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="emailNotifications" checked>
+                            <label class="form-check-label" for="emailNotifications">Email Notifications</label>
+                        </div>
+                        
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="attendanceAlerts" checked>
+                            <label class="form-check-label" for="attendanceAlerts">Attendance Alerts</label>
+                        </div>
+                        
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="systemUpdates">
+                            <label class="form-check-label" for="systemUpdates">System Updates</label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary mt-3">
+                            <i class="fas fa-save me-2"></i>Save Preferences
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Security Tab -->
+            <div class="tab-pane fade" id="security">
+                <div class="profile-card">
+                    <h5 class="mb-4"><i class="fas fa-lock me-2 text-primary"></i>Security Settings</h5>
+                    
+                    <div class="security-card">
+                        <div class="d-flex align-items-center">
+                            <div class="security-icon me-3">
+                                <i class="fas fa-key"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">Password</h6>
+                                <p class="text-muted mb-0 small">Last changed: Never</p>
+                            </div>
+                            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                                Change Password
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="security-card">
+                        <div class="d-flex align-items-center">
+                            <div class="security-icon me-3">
+                                <i class="fas fa-mobile-alt"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">Two-Factor Authentication</h6>
+                                <p class="text-muted mb-0 small">Add an extra layer of security</p>
+                            </div>
+                            <button class="btn btn-outline-success" onclick="alert('2FA feature coming soon!')">Enable</button>
+                        </div>
+                    </div>
+                    
+                    <div class="security-card">
+                        <div class="d-flex align-items-center">
+                            <div class="security-icon me-3">
+                                <i class="fas fa-history"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">Session Management</h6>
+                                <p class="text-muted mb-0 small">You are logged in on 1 device</p>
+                            </div>
+                            <button class="btn btn-outline-warning" onclick="alert('Session management coming soon!')">Manage</button>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <h5 class="mb-4 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Danger Zone</h5>
+                    
+                    <div class="security-card border-danger">
+                        <div class="d-flex align-items-center">
+                            <div class="security-icon bg-danger bg-opacity-10 text-danger me-3">
+                                <i class="fas fa-trash-alt"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1 text-danger">Delete Account</h6>
+                                <p class="text-muted mb-0 small">Permanently delete your account and all data</p>
+                            </div>
+                            <button class="btn btn-outline-danger" onclick="alert('This action cannot be undone. Please contact administrator.')">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Activity Log Tab -->
+            <div class="tab-pane fade" id="activity">
+                <div class="profile-card">
+                    <h5 class="mb-4"><i class="fas fa-history me-2 text-primary"></i>Recent Activity</h5>
+                    
+                    <div class="activity-timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-dot success"></div>
+                            <div class="ms-3">
+                                <strong>Logged in</strong>
+                                <small class="text-muted d-block">{{ user.last_login|timesince }} ago</small>
+                                <p class="text-muted small mb-0">IP: 192.168.1.1 · Chrome on Windows</p>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="timeline-dot info"></div>
+                            <div class="ms-3">
+                                <strong>Profile viewed</strong>
+                                <small class="text-muted d-block">Just now</small>
+                                <p class="text-muted small mb-0">You are viewing your profile</p>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="timeline-dot success"></div>
+                            <div class="ms-3">
+                                <strong>Account created</strong>
+                                <small class="text-muted d-block">{{ user.date_joined|timesince }} ago</small>
+                                <p class="text-muted small mb-0">Welcome to TVET Attendance System</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <button class="btn btn-outline-primary" onclick="alert('Activity log download coming soon!')">
+                            <i class="fas fa-download me-2"></i>Download Activity Log
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-key me-2"></i>Change Password</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="#" onsubmit="alert('Password change functionality coming soon!'); return false;">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Current Password</label>
+                        <input type="password" class="form-control" name="old_password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">New Password</label>
+                        <input type="password" class="form-control" name="new_password1" required>
+                        <small class="text-muted">Must be at least 8 characters long</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Confirm New Password</label>
+                        <input type="password" class="form-control" name="new_password2" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Picture Modal -->
+<div class="modal fade" id="uploadPictureModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-camera me-2"></i>Upload Profile Picture</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="#" enctype="multipart/form-data" onsubmit="alert('Profile picture upload coming soon!'); return false;">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3 text-center">
+                        <img src="#" alt="Preview" id="imagePreview" class="img-fluid rounded-circle mb-3" style="max-width: 150px; display: none;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Select Image</label>
+                        <input type="file" class="form-control" name="profile_picture" accept="image/*" id="profileImageInput" required>
+                        <small class="text-muted">Supported formats: JPG, PNG, GIF (Max 2MB)</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Upload Picture</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Calculate days active
+    var joinDate = new Date("{{ user.date_joined|date:'Y-m-d' }}");
+    var today = new Date();
+    var diffTime = Math.abs(today - joinDate);
+    var diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    $('#daysActive').text(diffDays);
+    
+    // Simulate login count (you can replace with actual data)
+    $('#loginCount').text('{{ user.last_login|yesno:"42,0" }}');
+    
+    // Image preview
+    $('#profileImageInput').change(function() {
+        var file = this.files[0];
+        if (file) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                $('#imagePreview').attr('src', e.target.result).show();
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+});
+</script>
+{% endblock %}

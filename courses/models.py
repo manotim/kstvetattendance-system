@@ -47,6 +47,13 @@ class Class(models.Model):
     def __str__(self):
         return f"{self.class_code} - {self.name}"
     
+    @property
+    def schedule(self):
+        """Return combined schedule string"""
+        if self.meeting_days and self.meeting_time:
+            return f"{self.meeting_days} at {self.meeting_time}"
+        return "Schedule not set"
+    
     class Meta:
         verbose_name_plural = 'Classes'
         ordering = ['-academic_year', 'semester', 'class_code']
