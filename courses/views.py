@@ -620,7 +620,7 @@ def assign_instructor_to_class(request, class_id):
 def api_unassigned_classes_count(request):
     """API endpoint to get count of unassigned classes"""
     count = Class.objects.filter(
-        Q(instructor__isnull=True) | Q(instructor=''),
+        Q(instructor__isnull=True),
         is_active=True
     ).count()
     return JsonResponse({'count': count})
@@ -667,3 +667,18 @@ def api_unassigned_classes(request):
         } for cls in classes]
     }
     return JsonResponse(data)
+
+
+
+@login_required
+def available_courses(request):
+    # Get courses/classes available for enrollment
+    # Adjust this query based on your model structure
+    available_classes = Class.objects.filter(
+        is_active=True,
+        # Add any other conditions for available classes
+    ).select_related('course', 'instructor')
+    
+    return render(request, 'courses/available_courses.html', {
+        'classes': available_classes
+    })

@@ -8,6 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.generic import TemplateView
 from accounts.views import dashboard_view
 from accounts.views import CustomLoginView  # We'll create this
+from students import views as students_views
 
 urlpatterns = [
     # Admin site
@@ -15,6 +16,8 @@ urlpatterns = [
     
     # Main dashboard
     path('', dashboard_view, name='dashboard'),
+
+    path('student-dashboard/', students_views.student_dashboard, name='student_dashboard'),
     
     # App includes
     path('accounts/', include('accounts.urls')),

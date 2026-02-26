@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h2>Available Courses</h2>
+    <div class="row">
+        {% for class in classes %}
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ class.course.name }}</h5>
+                    <p class="card-text">
+                        <strong>Code:</strong> {{ class.course.code }}<br>
+                        <strong>Instructor:</strong> {{ class.instructor.get_full_name|default:"Not Assigned" }}<br>
+                        <strong>Schedule:</strong> {{ class.schedule|default:"TBA" }}
+                    </p>
+                    <a href="{% url 'courses:enroll_students' class.id %}" class="btn btn-primary">Enroll</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col">
+            <p>No available courses at the moment.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

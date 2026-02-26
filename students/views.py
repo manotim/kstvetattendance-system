@@ -247,22 +247,20 @@ def bulk_import_students(request):
     context = {'form': form}
     return render(request, 'students/bulk_import.html', context)
 
-
 @login_required
 def student_dashboard(request):
-    """
-    View for students to see their own dashboard
-    """
-    if request.user.user_type != 'student':
-        return redirect('dashboard')
-    
+    """Student dashboard view"""
+    # Get the student profile
     try:
-        student = request.user.student
+        student = Student.objects.get(user=request.user)
     except Student.DoesNotExist:
-        return redirect('logout')
+        student = None
     
-    enrollments = student.enrollments.select_related('course', 'class_enrolled').filter(is_active=True)
-    academic_records = student.academic_records.all()[:5]
+    # Get enrollments for the student
+    enrollments = Enrollment.objects.filter(student=student) if student else []
+    
+    # Get academic records
+    academic_records = AcademicRecord.objects.filter(student=student) if student else []
     
     context = {
         'student': student,
@@ -271,7 +269,7 @@ def student_dashboard(request):
     }
     return render(request, 'students/student_dashboard.html', context)
 
-
+    
 @require_POST
 @login_required
 @instructor_required

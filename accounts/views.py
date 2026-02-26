@@ -1,14 +1,23 @@
-# accounts/views.py
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.contrib.auth import logout
+from django.shortcuts import render, get_object_or_404, redirect
+from django.db import models
+from django.urls import reverse
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required, user_passes_test
+from .forms import (
+    UserApprovalForm, UserSearchForm, CustomUserCreationForm,
+    InstructorRegistrationForm, AdminRegistrationForm,  # Add these imports
+    HodRegistrationForm, RegistrarRegistrationForm, ProfileUpdateForm
+)
 from django.db.models import Count, Q
 from django.utils import timezone
-from .forms import CustomUserCreationForm
 from attendance.models import AttendanceSession, AttendanceRecord
 from students.models import Student
 from courses.models import Course, Class
+from django.contrib.auth.views import LoginView
 from accounts.models import User
 
 def dashboard_view(request):
@@ -169,6 +178,8 @@ def dashboard_view(request):
 
 
 
+
+
 def register_view(request):
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
@@ -181,11 +192,279 @@ def register_view(request):
         form = CustomUserCreationForm()
     return render(request, 'accounts/register.html', {'form': form})
 
+class CustomLoginView(LoginView):
+    """
+    Custom login view that redirects users based on their user type
+    """
+    template_name = 'accounts/login.html'
+    redirect_authenticated_user = True
+    
+    def get_success_url(self):
+        user = self.request.user
+        
+        # Redirect based on user type using existing URLs
+        if user.user_type == 'admin' or user.is_superuser:
+            return reverse('admin:index')  # Django admin
+        elif user.user_type == 'hod':
+            # Redirect HOD to main dashboard for now
+            return reverse('dashboard')
+        elif user.user_type == 'instructor':
+            # Redirect instructors to main dashboard for now
+            return reverse('dashboard')
+        elif user.user_type == 'registrar':
+            # Redirect registrars to main dashboard for now
+            return reverse('dashboard')
+        elif user.user_type == 'student':
+            # Students go to student_dashboard (this exists)
+            return reverse('student_dashboard')
+        else:
+            # Default fallback
+            return reverse('dashboard')
+        
+
+def is_admin(user):
+    return user.is_authenticated and (user.user_type == 'admin' or user.is_superuser)
+
+@login_required
+@user_passes_test(is_admin)
+def pending_approvals_view(request):
+    """
+    View for admins to see and approve/reject pending user accounts
+    """
+    # Get all pending users (instructors, HODs, registrars who need approval)
+    pending_users = User.objects.filter(
+        account_status='pending'
+    ).order_by('-date_joined')
+    
+    # Handle approval/rejection
+    if request.method == 'POST':
+        user_id = request.POST.get('user_id')
+        action = request.POST.get('action')
+        pending_user = get_object_or_404(User, id=user_id, account_status='pending')
+        
+        if action == 'approve':
+            pending_user.account_status = 'approved'
+            pending_user.is_active = True
+            pending_user.save()
+            messages.success(request, f'User {pending_user.username} has been approved.')
+            
+        elif action == 'reject':
+            form = UserApprovalForm(request.POST, instance=pending_user)
+            if form.is_valid():
+                form.save()
+                messages.warning(request, f'User {pending_user.username} has been rejected.')
+            else:
+                messages.error(request, 'Please provide a reason for rejection.')
+                return redirect('pending_approvals')
+        
+        return redirect('pending_approvals')
+    
+    # Search functionality
+    search_form = UserSearchForm(request.GET)
+    if search_form.is_valid():
+        query = search_form.cleaned_data.get('query')
+        user_type = search_form.cleaned_data.get('user_type')
+        
+        if query:
+            pending_users = pending_users.filter(
+                models.Q(username__icontains=query) |
+                models.Q(email__icontains=query) |
+                models.Q(first_name__icontains=query) |
+                models.Q(last_name__icontains=query)
+            )
+        if user_type:
+            pending_users = pending_users.filter(user_type=user_type)
+    
+    # Pagination
+    paginator = Paginator(pending_users, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'pending_users': page_obj,
+        'search_form': search_form,
+        'total_pending': pending_users.count(),
+    }
+    return render(request, 'accounts/pending_approvals.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def approve_user_view(request, user_id):
+    """
+    View to approve a specific pending user
+    """
+    pending_user = get_object_or_404(User, id=user_id, account_status='pending')
+    
+    if request.method == 'POST':
+        form = UserApprovalForm(request.POST, instance=pending_user)
+        if form.is_valid():
+            form.save()
+            if form.cleaned_data['account_status'] == 'approved':
+                messages.success(request, f'User {pending_user.username} has been approved.')
+            else:
+                messages.warning(request, f'User {pending_user.username} has been rejected.')
+            return redirect('pending_approvals')
+    else:
+        form = UserApprovalForm(instance=pending_user)
+    
+    context = {
+        'form': form,
+        'pending_user': pending_user,
+    }
+    return render(request, 'accounts/approve_user.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def bulk_approve_users_view(request):
+    """
+    View to approve multiple users at once
+    """
+    if request.method == 'POST':
+        user_ids = request.POST.getlist('selected_users')
+        action = request.POST.get('bulk_action')
+        
+        if not user_ids:
+            messages.warning(request, 'No users selected.')
+            return redirect('pending_approvals')
+        
+        users = User.objects.filter(id__in=user_ids, account_status='pending')
+        
+        if action == 'approve':
+            count = users.update(account_status='approved', is_active=True)
+            messages.success(request, f'{count} user(s) have been approved.')
+        elif action == 'reject':
+            # For bulk reject, we need a reason
+            reason = request.POST.get('bulk_rejection_reason')
+            if not reason:
+                messages.error(request, 'Rejection reason is required for bulk rejection.')
+                return redirect('pending_approvals')
+            
+            count = users.update(
+                account_status='rejected', 
+                is_active=False,
+                rejection_reason=reason
+            )
+            messages.warning(request, f'{count} user(s) have been rejected.')
+        
+    return redirect('pending_approvals')
+
+
+# ============= NEW VIEWS ADDED BELOW =============
+
+@login_required
+@user_passes_test(is_admin)
+def create_instructor_view(request):
+    """
+    Admin view to create instructor accounts
+    """
+    if request.method == 'POST':
+        form = InstructorRegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, f'Instructor account {user.username} created successfully!')
+            return redirect('pending_approvals')
+    else:
+        form = InstructorRegistrationForm()
+    
+    return render(request, 'accounts/create_instructor.html', {'form': form})
+
+
+@login_required
+@user_passes_test(is_admin)
+def create_admin_view(request):
+    """
+    Admin view to create admin accounts
+    Note: Only superusers can create admin accounts
+    """
+    # Check if user is superuser
+    if not request.user.is_superuser:
+        messages.error(request, 'Only superusers can create admin accounts.')
+        return redirect('pending_approvals')
+    
+    if request.method == 'POST':
+        form = AdminRegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, f'Admin account {user.username} created successfully!')
+            return redirect('pending_approvals')
+    else:
+        form = AdminRegistrationForm()
+    
+    return render(request, 'accounts/create_admin.html', {'form': form})
+
+
+# Optional: Add HOD creation view if needed
+@login_required
+@user_passes_test(is_admin)
+def create_hod_view(request):
+    """
+    Admin view to create HOD accounts
+    """
+    if request.method == 'POST':
+        form = HodRegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, f'HOD account {user.username} created successfully!')
+            return redirect('pending_approvals')
+    else:
+        form = HodRegistrationForm()
+    
+    return render(request, 'accounts/create_hod.html', {'form': form})
+
+
+# Optional: Add Registrar creation view if needed
+@login_required
+@user_passes_test(is_admin)
+def create_registrar_view(request):
+    """
+    Admin view to create Registrar accounts
+    """
+    if request.method == 'POST':
+        form = RegistrarRegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, f'Registrar account {user.username} created successfully!')
+            return redirect('pending_approvals')
+    else:
+        form = RegistrarRegistrationForm()
+    
+    return render(request, 'accounts/create_registrar.html', {'form': form})
+
+
 @login_required
 def profile_view(request):
-    return render(request, 'accounts/profile.html')
+    if request.method == 'POST':
+        form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Your profile has been updated successfully!')
+            return redirect('profile')
+    else:
+        form = ProfileUpdateForm(instance=request.user)
+    
+    context = {
+        'form': form,
+        'user': request.user,
+    }
+    return render(request, 'accounts/profile.html', context)
+
 
 def logout_view(request):
     logout(request)
     messages.success(request, 'You have been successfully logged out.')
     return redirect('login')
+
+def handler403(request, exception=None):
+    """Custom 403 error handler"""
+    return render(request, 'errors/403.html', status=403)
+
+def handler404(request, exception=None):
+    """Custom 404 error handler"""
+    return render(request, 'errors/404.html', status=404)
+
+def handler500(request):
+    """Custom 500 error handler"""
+    return render(request, 'errors/500.html', status=500)

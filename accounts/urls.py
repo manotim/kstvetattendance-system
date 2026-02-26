@@ -1,4 +1,3 @@
-# accounts/urls.py
 from django.urls import path
 from . import views
 
@@ -15,4 +14,6 @@ urlpatterns = [
     # Account creation URLs (admin only)
     path('create/instructor/', views.create_instructor_view, name='create_instructor'),
     path('create/admin/', views.create_admin_view, name='create_admin'),
+    path('create/hod/', views.create_hod_view, name='create_hod'),
+    path('create/registrar/', views.create_registrar_view, name='create_registrar'),
 ]

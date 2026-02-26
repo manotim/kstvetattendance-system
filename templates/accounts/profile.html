@@ -296,7 +296,7 @@
                     <i class="fas fa-bell me-2"></i>Notification Settings
                 </a>
                 {% if user.user_type == 'student' %}
-                <a href="{% url 'students:dashboard' %}" class="btn btn-outline-secondary text-start">
+                <a href="{% url 'students:student_dashboard' %}" class="btn btn-outline-secondary text-start">
                     <i class="fas fa-tachometer-alt me-2"></i>Go to Student Dashboard
                 </a>
                 {% elif user.user_type == 'instructor' %}

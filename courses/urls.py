@@ -19,6 +19,7 @@ urlpatterns = [
     path('classes/<int:pk>/update/', views.class_update, name='class_update'),
     path('classes/<int:pk>/delete/', views.class_delete, name='class_delete'),
     path('classes/<int:class_id>/enroll/', views.enroll_students, name='enroll_students'),
+    path('available/', views.available_courses, name='available_courses'),
     
     # User-specific views
     path('instructor/classes/', views.instructor_classes, name='instructor_classes'),

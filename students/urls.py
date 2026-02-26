@@ -17,7 +17,7 @@ urlpatterns = [
     path('<int:pk>/toggle-status/', views.toggle_student_status, name='toggle_status'),
     
     # Student dashboard (for students themselves)
-    path('dashboard/', views.student_dashboard, name='dashboard'),
+    path('dashboard/', views.student_dashboard, name='student_dashboard'),
     
     # Class-based student views (for instructors)
     path('class/<int:class_id>/', views.students_by_class, name='students_by_class'),
